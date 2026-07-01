@@ -4,7 +4,11 @@ import '../../../theme/app_theme.dart';
 import '../../home/models/home_models.dart';
 
 class FlowBucket {
-  const FlowBucket({required this.label, required this.income, required this.expense});
+  const FlowBucket({
+    required this.label,
+    required this.income,
+    required this.expense,
+  });
 
   final String label;
   final double income;
@@ -23,7 +27,9 @@ class WeeklyFlowChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final incomeColor = isDark ? HitoColors.successDark : HitoColors.successLight;
+    final incomeColor = isDark
+        ? HitoColors.successDark
+        : HitoColors.successLight;
     final expenseColor = theme.colorScheme.error;
 
     final totalIncome = buckets.fold<double>(0, (sum, b) => sum + b.income);
@@ -38,7 +44,7 @@ class WeeklyFlowChart extends StatelessWidget {
       padding: const EdgeInsets.all(HitoSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor(theme),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(HitoRadius.hero),
         boxShadow: cardShadow(),
       ),
       child: Column(
@@ -51,10 +57,17 @@ class WeeklyFlowChart extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Flujo semanal', style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Flujo semanal',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     Text(
                       'Últimos 7 días',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -62,9 +75,17 @@ class WeeklyFlowChart extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _LegendRow(color: incomeColor, label: 'Ingresos', value: totalIncome),
+                  _LegendRow(
+                    color: incomeColor,
+                    label: 'Ingresos',
+                    value: totalIncome,
+                  ),
                   const SizedBox(height: 4),
-                  _LegendRow(color: expenseColor, label: 'Gastos', value: totalExpense),
+                  _LegendRow(
+                    color: expenseColor,
+                    label: 'Gastos',
+                    value: totalExpense,
+                  ),
                 ],
               ),
             ],
@@ -86,16 +107,24 @@ class WeeklyFlowChart extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _Bar(height: 77 * (bucket.income / maxValue), color: incomeColor),
+                            _Bar(
+                              height: 77 * (bucket.income / maxValue),
+                              color: incomeColor,
+                            ),
                             const SizedBox(width: 2),
-                            _Bar(height: 77 * (bucket.expense / maxValue), color: expenseColor),
+                            _Bar(
+                              height: 77 * (bucket.expense / maxValue),
+                              color: expenseColor,
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: HitoSpacing.sm),
                       Text(
                         bucket.label,
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -128,7 +157,11 @@ class _Bar extends StatelessWidget {
 }
 
 class _LegendRow extends StatelessWidget {
-  const _LegendRow({required this.color, required this.label, required this.value});
+  const _LegendRow({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
 
   final Color color;
   final String label;
@@ -146,11 +179,19 @@ class _LegendRow extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(width: 4),
         Text(
           formatCurrency(value),
-          style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
       ],
     );

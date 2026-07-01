@@ -26,7 +26,9 @@ class UserSettings {
   final bool notifySpendingAlerts;
   final bool notifySavingsGoals;
 
-  factory UserSettings.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory UserSettings.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     if (data == null) return empty;
     return UserSettings(
@@ -42,7 +44,7 @@ class UserSettings {
 /// CRUD de las preferencias del usuario, en el documento users/{uid}.
 class UserSettingsRepository {
   UserSettingsRepository(this.uid, {FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final String uid;
   final FirebaseFirestore _firestore;
@@ -54,7 +56,8 @@ class UserSettingsRepository {
     return _doc.snapshots().map(UserSettings.fromFirestore);
   }
 
-  Future<void> updateName(String name) => _doc.set({'name': name}, SetOptions(merge: true));
+  Future<void> updateName(String name) =>
+      _doc.set({'name': name}, SetOptions(merge: true));
 
   Future<void> updateNotificationPref(String field, bool value) =>
       _doc.set({field: value}, SetOptions(merge: true));

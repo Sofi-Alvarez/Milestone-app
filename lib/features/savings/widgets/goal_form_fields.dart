@@ -62,7 +62,9 @@ class SimulatorProgressCard extends StatelessWidget {
               Expanded(
                 child: _SimulatorStat(
                   label: 'Fecha objetivo',
-                  value: targetDate == null ? 'Sin fecha' : formatGoalDate(targetDate!),
+                  value: targetDate == null
+                      ? 'Sin fecha'
+                      : formatGoalDate(targetDate!),
                 ),
               ),
             ],
@@ -211,8 +213,9 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
                   keyboardType: widget.keyboardType,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => widget.focusNode.unfocus(),
-                  inputFormatters:
-                      widget.isAmount ? [ThousandsInputFormatter()] : null,
+                  inputFormatters: widget.isAmount
+                      ? [ThousandsInputFormatter()]
+                      : null,
                   style: theme.textTheme.headlineMedium,
                   decoration: const InputDecoration(
                     isDense: true,

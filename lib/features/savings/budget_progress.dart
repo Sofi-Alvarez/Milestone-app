@@ -5,7 +5,10 @@ import '../../data/transaction_category.dart';
 /// Gasto acumulado de un presupuesto contra las transacciones reales
 /// del período — nunca se persiste, se calcula en vivo cada vez.
 class BudgetProgress {
-  const BudgetProgress({required this.spentTotal, required this.spentByCategory});
+  const BudgetProgress({
+    required this.spentTotal,
+    required this.spentByCategory,
+  });
 
   final double spentTotal;
   final Map<String, double> spentByCategory;
@@ -23,10 +26,14 @@ class BudgetProgress {
   }
 }
 
-BudgetProgress computeBudgetProgress(Budget budget, List<MoneyTransaction> transactions) {
+BudgetProgress computeBudgetProgress(
+  Budget budget,
+  List<MoneyTransaction> transactions,
+) {
   final relevant = transactions.where((t) {
     if (t.type != TransactionType.expense) return false;
-    if (t.date.isBefore(budget.startDate) || t.date.isAfter(budget.endDate)) return false;
+    if (t.date.isBefore(budget.startDate) || t.date.isAfter(budget.endDate))
+      return false;
     // Ventana "congelada": mientras el presupuesto estuvo pausado, los
     // gastos hechos en ese lapso no cuentan — ni ahora ni si se
     // reanuda más tarde.
@@ -35,7 +42,8 @@ BudgetProgress computeBudgetProgress(Budget budget, List<MoneyTransaction> trans
       final freezeEnd = budget.status == BudgetStatus.paused
           ? DateTime.now()
           : (budget.resumedAt ?? budget.pausedAt!);
-      if (!t.date.isBefore(freezeStart) && !t.date.isAfter(freezeEnd)) return false;
+      if (!t.date.isBefore(freezeStart) && !t.date.isAfter(freezeEnd))
+        return false;
     }
     return true;
   });

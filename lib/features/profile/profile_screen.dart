@@ -7,6 +7,7 @@ import '../../data/transactions_repository.dart';
 import '../../data/user_settings.dart';
 import '../../main.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/action_row.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/confirm_dialog.dart';
 
@@ -53,17 +54,23 @@ class ProfileScreen extends StatelessWidget {
               HitoSpacing.xxl,
             ),
             children: [
-              _ProfileHeader(name: settings.name, settingsRepository: settingsRepository),
+              _ProfileHeader(
+                name: settings.name,
+                settingsRepository: settingsRepository,
+              ),
               const SizedBox(height: HitoSpacing.lg),
               _SectionLabel('Cuenta'),
               const SizedBox(height: HitoSpacing.sm),
               _SettingsCard(
                 children: [
-                  _ActionRow(
+                  ActionRow(
                     icon: Icons.badge_outlined,
                     label: 'Nombre',
-                    trailing: settings.name.isEmpty ? 'Sin definir' : settings.name,
-                    onTap: () => _editName(context, settingsRepository, settings.name),
+                    trailing: settings.name.isEmpty
+                        ? 'Sin definir'
+                        : settings.name,
+                    onTap: () =>
+                        _editName(context, settingsRepository, settings.name),
                   ),
                 ],
               ),
@@ -78,7 +85,9 @@ class ProfileScreen extends StatelessWidget {
                       icon: Icons.dark_mode_outlined,
                       label: 'Tema oscuro',
                       value: mode == ThemeMode.dark,
-                      onChanged: (v) => themeModeNotifier.value = v ? ThemeMode.dark : ThemeMode.light,
+                      onChanged: (v) => themeModeNotifier.value = v
+                          ? ThemeMode.dark
+                          : ThemeMode.light,
                     ),
                   ),
                 ],
@@ -91,10 +100,13 @@ class ProfileScreen extends StatelessWidget {
                   _SwitchRow(
                     icon: Icons.edit_note_outlined,
                     label: 'Recordatorio para registrar',
-                    subtitle: 'Avisa si hace tiempo que no registrás movimientos',
+                    subtitle:
+                        'Avisa si hace tiempo que no registrás movimientos',
                     value: settings.notifyRegisterReminder,
-                    onChanged: (v) =>
-                        settingsRepository.updateNotificationPref('notifyRegisterReminder', v),
+                    onChanged: (v) => settingsRepository.updateNotificationPref(
+                      'notifyRegisterReminder',
+                      v,
+                    ),
                   ),
                   const _RowDivider(),
                   _SwitchRow(
@@ -102,17 +114,22 @@ class ProfileScreen extends StatelessWidget {
                     label: 'Resumen diario',
                     subtitle: 'Un resumen de tus ingresos y gastos del día',
                     value: settings.notifyDailySummary,
-                    onChanged: (v) =>
-                        settingsRepository.updateNotificationPref('notifyDailySummary', v),
+                    onChanged: (v) => settingsRepository.updateNotificationPref(
+                      'notifyDailySummary',
+                      v,
+                    ),
                   ),
                   const _RowDivider(),
                   _SwitchRow(
                     icon: Icons.warning_amber_outlined,
                     label: 'Alertas de gasto',
-                    subtitle: 'Cuando tu saldo cae por debajo del mínimo',
+                    subtitle:
+                        'Cuando tu dinero disponible cae por debajo del mínimo',
                     value: settings.notifySpendingAlerts,
-                    onChanged: (v) =>
-                        settingsRepository.updateNotificationPref('notifySpendingAlerts', v),
+                    onChanged: (v) => settingsRepository.updateNotificationPref(
+                      'notifySpendingAlerts',
+                      v,
+                    ),
                   ),
                   const _RowDivider(),
                   _SwitchRow(
@@ -120,8 +137,10 @@ class ProfileScreen extends StatelessWidget {
                     label: 'Metas de ahorro',
                     subtitle: 'Cuando alcanzás una meta de ahorro',
                     value: settings.notifySavingsGoals,
-                    onChanged: (v) =>
-                        settingsRepository.updateNotificationPref('notifySavingsGoals', v),
+                    onChanged: (v) => settingsRepository.updateNotificationPref(
+                      'notifySavingsGoals',
+                      v,
+                    ),
                   ),
                 ],
               ),
@@ -131,13 +150,13 @@ class ProfileScreen extends StatelessWidget {
               // toquen sin querer.
               _SettingsCard(
                 children: [
-                  _ActionRow(
+                  ActionRow(
                     icon: Icons.logout,
                     label: 'Cerrar sesión',
                     onTap: () => _confirmSignOut(context),
                   ),
                   const _RowDivider(),
-                  _ActionRow(
+                  ActionRow(
                     icon: Icons.delete_forever_outlined,
                     label: 'Eliminar cuenta',
                     labelColor: theme.colorScheme.error,
@@ -168,7 +187,10 @@ class ProfileScreen extends StatelessWidget {
           decoration: const InputDecoration(hintText: 'Escribí tu nombre'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
             child: const Text('Guardar'),
@@ -191,8 +213,14 @@ class ProfileScreen extends StatelessWidget {
           'para la próxima vez que entres desde este dispositivo.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Cerrar sesión')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Cerrar sesión'),
+          ),
         ],
       ),
     );
@@ -205,7 +233,8 @@ class ProfileScreen extends StatelessWidget {
     final firstConfirm = await confirmDialog(
       context,
       title: '¿Eliminar cuenta?',
-      body: 'Se van a borrar todas tus metas, movimientos, registros y pagos '
+      body:
+          'Se van a borrar todas tus metas, movimientos, registros y pagos '
           'programados. Esta acción no se puede deshacer.',
       confirmLabel: 'Continuar',
       destructive: true,
@@ -257,7 +286,12 @@ class ProfileScreen extends StatelessWidget {
       }
       if (context.mounted) RestartWidget.restartApp(context);
     } catch (e) {
-      if (context.mounted) showAppSnackBar(context, 'No pudimos eliminar la cuenta: $e', isError: true);
+      if (context.mounted)
+        showAppSnackBar(
+          context,
+          'No pudimos eliminar la cuenta: $e',
+          isError: true,
+        );
     }
   }
 }
@@ -278,7 +312,7 @@ class _ProfileHeader extends StatelessWidget {
       padding: const EdgeInsets.all(HitoSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor(theme),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(HitoRadius.hero),
         boxShadow: cardShadow(),
       ),
       child: Column(
@@ -293,7 +327,11 @@ class _ProfileHeader extends StatelessWidget {
                       color: theme.colorScheme.onPrimaryContainer,
                     ),
                   )
-                : Icon(Icons.person_outline, size: 32, color: theme.colorScheme.onPrimaryContainer),
+                : Icon(
+                    Icons.person_outline,
+                    size: 32,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
           ),
           const SizedBox(height: HitoSpacing.sm),
           Text(
@@ -356,57 +394,13 @@ class _RowDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(left: HitoSpacing.md + 20 + HitoSpacing.md),
+      padding: const EdgeInsets.only(
+        left: HitoSpacing.md + 20 + HitoSpacing.md,
+      ),
       child: Divider(
         height: 1,
         thickness: 1,
         color: theme.colorScheme.outline.withValues(alpha: 0.15),
-      ),
-    );
-  }
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    this.trailing,
-    this.labelColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? trailing;
-  final Color? labelColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.md),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: labelColor ?? theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: HitoSpacing.md),
-            Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(color: labelColor),
-              ),
-            ),
-            if (trailing != null)
-              Text(
-                trailing!,
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            const SizedBox(width: HitoSpacing.xs),
-            Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurfaceVariant),
-          ],
-        ),
       ),
     );
   }
@@ -431,7 +425,10 @@ class _SwitchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: HitoSpacing.md,
+        vertical: HitoSpacing.sm,
+      ),
       child: Row(
         children: [
           Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
@@ -444,7 +441,9 @@ class _SwitchRow extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
               ],
             ),

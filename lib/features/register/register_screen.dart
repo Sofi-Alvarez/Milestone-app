@@ -67,11 +67,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool get _isValid => _amount > 0 && _category != null;
 
-  String? get _amountError =>
-      _amountTouched && _amount <= 0 ? 'El monto tiene que ser mayor a \$0' : null;
+  String? get _amountError => _amountTouched && _amount <= 0
+      ? 'El monto tiene que ser mayor a \$0'
+      : null;
 
-  String? get _categoryError =>
-      _categoryTouched && _category == null ? 'Elegí una categoría para continuar' : null;
+  String? get _categoryError => _categoryTouched && _category == null
+      ? 'Elegí una categoría para continuar'
+      : null;
 
   void _onTypeChanged(TransactionType type) {
     setState(() {
@@ -147,7 +149,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else {
         showAppSnackBar(
           context,
-          _type == TransactionType.income ? 'Ingreso registrado' : 'Gasto registrado',
+          _type == TransactionType.income
+              ? 'Ingreso registrado'
+              : 'Gasto registrado',
         );
       }
       widget.onDone();
@@ -278,7 +282,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: _category != null
                                   ? theme.colorScheme.onSurface
                                   : theme.colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.7),
+                                        .withValues(alpha: 0.7),
                             ),
                           ),
                         ),
@@ -302,9 +306,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: HitoSpacing.lg),
                 InkWell(
                   borderRadius: BorderRadius.circular(HitoRadius.sm),
-                  onTap: () => setState(() => _advancedExpanded = !_advancedExpanded),
+                  onTap: () =>
+                      setState(() => _advancedExpanded = !_advancedExpanded),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: HitoSpacing.sm),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: HitoSpacing.sm,
+                    ),
                     child: Row(
                       children: [
                         Icon(
@@ -358,7 +365,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: HitoSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: HitoSpacing.md,
+                    ),
                     decoration: BoxDecoration(
                       color: recessedColor(theme),
                       borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -451,7 +460,9 @@ class _AmountFieldState extends State<_AmountField> {
                 focusNode: widget.focusNode,
                 autofocus: true,
                 textAlign: TextAlign.center,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 textInputAction: TextInputAction.done,
                 inputFormatters: [ThousandsInputFormatter()],
                 onSubmitted: (_) => widget.focusNode.unfocus(),
@@ -465,13 +476,16 @@ class _AmountFieldState extends State<_AmountField> {
               )
             : Text(
                 hasValue
-                    ? formatCurrency(parseAmountInput(widget.controller.text))
-                        .replaceAll('\$', '\$ ')
+                    ? formatCurrency(
+                        parseAmountInput(widget.controller.text),
+                      ).replaceAll('\$', '\$ ')
                     : '\$ 0,00',
                 style: theme.textTheme.displayMedium?.copyWith(
                   color: hasValue
                       ? theme.colorScheme.onSurface
-                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      : theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
                 ),
               ),
       ),

@@ -24,14 +24,14 @@ class WelcomeScreen extends StatelessWidget {
               const LogoMark(diameter: 88),
               const SizedBox(height: HitoSpacing.lg),
               Text(
-                'Bienvenido',
+                'Entendé en qué se va tu plata, sin estrés',
                 style: theme.textTheme.headlineLarge,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: HitoSpacing.sm),
               Text(
-                'Un espacio para entender tu relación con el dinero '
-                'y sentirte más tranquilo día a día.',
+                'Registrá en segundos y llevá el control de tus gastos '
+                'e ingresos, sin conectar tu banco.',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

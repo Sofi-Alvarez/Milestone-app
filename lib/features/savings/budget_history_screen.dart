@@ -41,7 +41,10 @@ class BudgetHistoryScreen extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: pageColor(theme),
-      appBar: AppBar(title: const Text('Historial de presupuestos'), centerTitle: false),
+      appBar: AppBar(
+        title: const Text('Historial de presupuestos'),
+        centerTitle: false,
+      ),
       body: SafeArea(
         top: false,
         child: StreamBuilder<List<Budget>>(
@@ -55,14 +58,17 @@ class BudgetHistoryScreen extends StatelessWidget {
               return Center(
                 child: Text(
                   'Todavía no creaste ningún presupuesto.',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               );
             }
             return StreamBuilder<List<MoneyTransaction>>(
               stream: transactionsRepository.watchTransactions(limit: 500),
               builder: (context, txSnapshot) {
-                final transactions = txSnapshot.data ?? const <MoneyTransaction>[];
+                final transactions =
+                    txSnapshot.data ?? const <MoneyTransaction>[];
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(
                     HitoSpacing.lg,
@@ -72,7 +78,9 @@ class BudgetHistoryScreen extends StatelessWidget {
                   ),
                   children: [
                     Text(
-                      budgets.length == 1 ? '1 presupuesto' : '${budgets.length} presupuestos',
+                      budgets.length == 1
+                          ? '1 presupuesto'
+                          : '${budgets.length} presupuestos',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -123,7 +131,11 @@ class _BudgetHistoryTile extends StatelessWidget {
   String get _relativeLabel {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(budget.startDate.year, budget.startDate.month, budget.startDate.day);
+    final start = DateTime(
+      budget.startDate.year,
+      budget.startDate.month,
+      budget.startDate.day,
+    );
     if (start == today) return 'hoy';
     return formatGoalDate(budget.startDate);
   }
@@ -134,8 +146,8 @@ class _BudgetHistoryTile extends StatelessWidget {
     final statusLabel = budget.status == BudgetStatus.cancelled
         ? 'Cancelado'
         : budget.isPastEnd
-            ? 'Cerrado'
-            : budget.status.label;
+        ? 'Cerrado'
+        : budget.status.label;
 
     return Container(
       width: double.infinity,
@@ -153,18 +165,24 @@ class _BudgetHistoryTile extends StatelessWidget {
             children: [
               Text(
                 _relativeLabel,
-                style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     'Gasto',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Text(
                     formatCurrency(progress.spentTotal),
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -173,11 +191,15 @@ class _BudgetHistoryTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             '${formatGoalDate(budget.startDate)} — ${formatGoalDate(budget.endDate)}',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           Text(
             'Estado: $statusLabel',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: HitoSpacing.sm),
           Row(

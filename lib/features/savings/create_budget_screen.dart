@@ -6,6 +6,9 @@ import '../../data/budgets_repository.dart';
 import '../../data/transaction_category.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/confirm_dialog.dart';
+import '../../widgets/selectable_option_card.dart';
+import '../../widgets/stat_value.dart';
 import '../../widgets/thousands_input_formatter.dart';
 import '../home/models/home_models.dart';
 import '../register/category_picker_sheet.dart';
@@ -63,7 +66,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
 
   late final _nameController = TextEditingController(text: _source?.name ?? '');
   late final _limitController = TextEditingController(
-    text: _source == null ? '' : formatCurrency(_source!.limitAmount).replaceAll('\$', ''),
+    text: _source == null
+        ? ''
+        : formatCurrency(_source!.limitAmount).replaceAll('\$', ''),
   );
   late final _noteController = TextEditingController(text: _source?.note ?? '');
 
@@ -71,24 +76,32 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   late DateTime? _endDate = widget.existingBudget != null
       ? widget.existingBudget!.endDate
       : (widget.duplicateFrom == null
-          ? DateTime.now().add(const Duration(days: 30))
-          : DateTime.now().add(
-              widget.duplicateFrom!.endDate.difference(widget.duplicateFrom!.startDate),
-            ));
+            ? DateTime.now().add(const Duration(days: 30))
+            : DateTime.now().add(
+                widget.duplicateFrom!.endDate.difference(
+                  widget.duplicateFrom!.startDate,
+                ),
+              ));
   late bool _notifyExceeded = _source?.notifyExceeded ?? true;
   late bool _notifyNearLimit = _source?.notifyNearLimit ?? true;
-  late List<BudgetCategoryAllocation> _categories = List.of(_source?.categories ?? const []);
+  late List<BudgetCategoryAllocation> _categories = List.of(
+    _source?.categories ?? const [],
+  );
 
   TransactionCategory? _newCategory;
   final _newAmountController = TextEditingController();
 
   bool _saving = false;
 
+  /// Se activa apenas el usuario toca algo — protege contra perder
+  /// el wizard de 4 pasos por un cierre accidental.
+  bool _dirty = false;
+
   @override
   void initState() {
     super.initState();
     for (final c in [_nameController, _limitController, _newAmountController]) {
-      c.addListener(() => setState(() {}));
+      c.addListener(() => setState(() => _dirty = true));
     }
   }
 
@@ -105,15 +118,16 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   double get _newAmount => parseAmountInput(_newAmountController.text);
   double get _assigned => _categories.fold(0, (sum, c) => sum + c.limitAmount);
 
-  bool get _step0Valid => _nameController.text.trim().isNotEmpty && _limit > 0 && _endDate != null;
+  bool get _step0Valid =>
+      _nameController.text.trim().isNotEmpty && _limit > 0 && _endDate != null;
   bool get _step2Valid => _type == BudgetType.general || _categories.isNotEmpty;
 
   bool get _canContinue => switch (_step) {
-        0 => _step0Valid,
-        1 => true,
-        2 => _step2Valid,
-        _ => true,
-      };
+    0 => _step0Valid,
+    1 => true,
+    2 => _step2Valid,
+    _ => true,
+  };
 
   Future<void> _pickEndDate() async {
     final picked = await showDatePicker(
@@ -122,11 +136,19 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
-    if (picked != null) setState(() => _endDate = picked);
+    if (picked != null) {
+      setState(() {
+        _endDate = picked;
+        _dirty = true;
+      });
+    }
   }
 
   Future<void> _pickNewCategory() async {
-    final picked = await showCategoryPicker(context, type: TransactionType.expense);
+    final picked = await showCategoryPicker(
+      context,
+      type: TransactionType.expense,
+    );
     if (picked != null) setState(() => _newCategory = picked);
   }
 
@@ -143,11 +165,17 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       ];
       _newCategory = null;
       _newAmountController.clear();
+      _dirty = true;
     });
   }
 
   void _removeAllocation(String categoryId) {
-    setState(() => _categories = _categories.where((c) => c.categoryId != categoryId).toList());
+    setState(() {
+      _categories = _categories
+          .where((c) => c.categoryId != categoryId)
+          .toList();
+      _dirty = true;
+    });
   }
 
   void _next() {
@@ -159,12 +187,30 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
     setState(() => _step++);
   }
 
-  void _back() {
+  Future<void> _back() async {
     if (_step == 0) {
-      Navigator.of(context).pop();
+      await _maybeClose();
       return;
     }
     setState(() => _step--);
+  }
+
+  /// Cierra el wizard, pero si hay cambios sin guardar pide
+  /// confirmación primero — evita perder los 4 pasos por un toque
+  /// accidental en la X o el botón "Atrás" del sistema.
+  Future<void> _maybeClose() async {
+    if (!_dirty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final confirmed = await confirmDialog(
+      context,
+      title: '¿Descartar los cambios?',
+      body: 'Los datos que cargaste en este presupuesto no se van a guardar.',
+      confirmLabel: 'Descartar',
+      destructive: true,
+    );
+    if (confirmed && mounted) Navigator.of(context).pop();
   }
 
   Future<void> _save() async {
@@ -193,12 +239,19 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
         await widget.repository.createBudget(budget);
       }
       if (!mounted) return;
-      showAppSnackBar(context, existing != null ? 'Presupuesto actualizado' : 'Presupuesto creado');
+      showAppSnackBar(
+        context,
+        existing != null ? 'Presupuesto actualizado' : 'Presupuesto creado',
+      );
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      showAppSnackBar(context, 'No pudimos guardar el presupuesto: $e', isError: true);
+      showAppSnackBar(
+        context,
+        'No pudimos guardar el presupuesto: $e',
+        isError: true,
+      );
     }
   }
 
@@ -206,58 +259,77 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: pageColor(theme),
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Cerrar',
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close),
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _maybeClose();
+      },
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: pageColor(theme),
+          appBar: AppBar(
+            leading: IconButton(
+              tooltip: 'Cerrar',
+              onPressed: _maybeClose,
+              icon: const Icon(Icons.close),
+            ),
+            title: Text(
+              _isEditing ? 'Editar presupuesto' : 'Crear presupuesto',
+            ),
+            centerTitle: false,
           ),
-          title: Text(_isEditing ? 'Editar presupuesto' : 'Crear presupuesto'),
-          centerTitle: false,
-        ),
-        body: SafeArea(
-          top: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.lg),
-                child: _StepProgressBar(step: _step, stepCount: _stepCount),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    HitoSpacing.lg,
-                    HitoSpacing.md,
-                    HitoSpacing.lg,
-                    HitoSpacing.lg,
+          body: SafeArea(
+            top: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HitoSpacing.lg,
                   ),
-                  child: switch (_step) {
-                    0 => _BasicsStep(
+                  child: _StepProgressBar(step: _step, stepCount: _stepCount),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      HitoSpacing.lg,
+                      HitoSpacing.md,
+                      HitoSpacing.lg,
+                      HitoSpacing.lg,
+                    ),
+                    child: switch (_step) {
+                      0 => _BasicsStep(
                         nameController: _nameController,
                         limitController: _limitController,
                         noteController: _noteController,
                         endDate: _endDate,
                         onPickDate: _pickEndDate,
                       ),
-                    1 => _TypeStep(selected: _type, onChanged: (t) => setState(() => _type = t)),
-                    2 => _type == BudgetType.byCategory
-                        ? _CategoriesStep(
-                            limit: _limit,
-                            assigned: _assigned,
-                            categories: _categories,
-                            newCategory: _newCategory,
-                            newAmountController: _newAmountController,
-                            onPickCategory: _pickNewCategory,
-                            onAdd: (_newCategory != null && _newAmount > 0) ? _addAllocation : null,
-                            onRemove: _removeAllocation,
-                          )
-                        : _GeneralInfoStep(limit: _limit),
-                    _ => _ConfirmStep(
+                      1 => _TypeStep(
+                        selected: _type,
+                        onChanged: (t) => setState(() {
+                          _type = t;
+                          _dirty = true;
+                        }),
+                      ),
+                      2 =>
+                        _type == BudgetType.byCategory
+                            ? _CategoriesStep(
+                                limit: _limit,
+                                assigned: _assigned,
+                                categories: _categories,
+                                newCategory: _newCategory,
+                                newAmountController: _newAmountController,
+                                onPickCategory: _pickNewCategory,
+                                onAdd: (_newCategory != null && _newAmount > 0)
+                                    ? _addAllocation
+                                    : null,
+                                onRemove: _removeAllocation,
+                              )
+                            : _GeneralInfoStep(limit: _limit),
+                      _ => _ConfirmStep(
                         name: _nameController.text.trim(),
                         type: _type,
                         limit: _limit,
@@ -265,50 +337,61 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                         categoryCount: _categories.length,
                         notifyExceeded: _notifyExceeded,
                         notifyNearLimit: _notifyNearLimit,
-                        onNotifyExceededChanged: (v) => setState(() => _notifyExceeded = v),
-                        onNotifyNearLimitChanged: (v) => setState(() => _notifyNearLimit = v),
+                        onNotifyExceededChanged: (v) => setState(() {
+                          _notifyExceeded = v;
+                          _dirty = true;
+                        }),
+                        onNotifyNearLimitChanged: (v) => setState(() {
+                          _notifyNearLimit = v;
+                          _dirty = true;
+                        }),
                       ),
-                  },
+                    },
+                  ),
                 ),
-              ),
-              SafeArea(
-                top: false,
-                minimum: const EdgeInsets.fromLTRB(
-                  HitoSpacing.lg,
-                  HitoSpacing.sm,
-                  HitoSpacing.lg,
-                  HitoSpacing.md,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _back,
-                        child: Text(_step == 0 ? 'Cancelar' : '← Atrás'),
+                SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.fromLTRB(
+                    HitoSpacing.lg,
+                    HitoSpacing.sm,
+                    HitoSpacing.lg,
+                    HitoSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _back,
+                          child: Text(_step == 0 ? 'Cancelar' : '← Atrás'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: HitoSpacing.sm),
-                    Expanded(
-                      flex: 2,
-                      child: FilledButton(
-                        onPressed: (_saving || !_canContinue) ? null : _next,
-                        child: _saving
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Text(
-                                _step == _stepCount - 1
-                                    ? (_isEditing ? 'Guardar cambios' : 'Confirmar presupuesto')
-                                    : 'Continuar →',
-                              ),
+                      const SizedBox(width: HitoSpacing.sm),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton(
+                          onPressed: (_saving || !_canContinue) ? null : _next,
+                          child: _saving
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  _step == _stepCount - 1
+                                      ? (_isEditing
+                                            ? 'Guardar cambios'
+                                            : 'Confirmar presupuesto')
+                                      : 'Continuar →',
+                                ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -333,12 +416,14 @@ class _StepProgressBar extends StatelessWidget {
             if (i > 0) const SizedBox(width: HitoSpacing.xs),
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(9999),
+                borderRadius: BorderRadius.circular(HitoRadius.full),
                 child: LinearProgressIndicator(
                   value: 1,
                   minHeight: 4,
                   backgroundColor: recessedColor(theme),
-                  color: i <= step ? theme.colorScheme.primary : recessedColor(theme),
+                  color: i <= step
+                      ? theme.colorScheme.primary
+                      : recessedColor(theme),
                 ),
               ),
             ),
@@ -374,12 +459,17 @@ class _BasicsStep extends StatelessWidget {
         const SizedBox(height: HitoSpacing.xs),
         Text(
           'Podés ajustar todo esto después.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: HitoSpacing.lg),
         _FieldLabel('Nombre'),
         const SizedBox(height: HitoSpacing.xs),
-        _PlainTextField(controller: nameController, hint: 'Ej. Mi mes de octubre'),
+        _PlainTextField(
+          controller: nameController,
+          hint: 'Ej. Mi mes de octubre',
+        ),
         const SizedBox(height: HitoSpacing.md),
         _FieldLabel('Monto límite total'),
         const SizedBox(height: HitoSpacing.xs),
@@ -411,7 +501,11 @@ class _BasicsStep extends StatelessWidget {
                     style: theme.textTheme.bodyLarge,
                   ),
                 ),
-                Icon(Icons.calendar_today_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
@@ -420,7 +514,9 @@ class _BasicsStep extends StatelessWidget {
           const SizedBox(height: HitoSpacing.xs),
           Text(
             _longDate(endDate!),
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
         const SizedBox(height: HitoSpacing.md),
@@ -436,10 +532,28 @@ class _BasicsStep extends StatelessWidget {
   }
 
   static String _longDate(DateTime date) {
-    const weekdays = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+    const weekdays = [
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+      'domingo',
+    ];
     const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
     ];
     return '${weekdays[date.weekday - 1]} ${date.day} de ${months[date.month - 1]}';
   }
@@ -526,10 +640,12 @@ class _TypeStep extends StatelessWidget {
         const SizedBox(height: HitoSpacing.xs),
         Text(
           'Podés cambiar el tipo más adelante.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: HitoSpacing.lg),
-        _TypeOptionCard(
+        SelectableOptionCard(
           icon: Icons.pie_chart_outline,
           title: 'Por categorías',
           description:
@@ -538,7 +654,7 @@ class _TypeStep extends StatelessWidget {
           onTap: () => onChanged(BudgetType.byCategory),
         ),
         const SizedBox(height: HitoSpacing.sm),
-        _TypeOptionCard(
+        SelectableOptionCard(
           icon: Icons.eco_outlined,
           title: 'Presupuesto general',
           description:
@@ -547,72 +663,6 @@ class _TypeStep extends StatelessWidget {
           onTap: () => onChanged(BudgetType.general),
         ),
       ],
-    );
-  }
-}
-
-class _TypeOptionCard extends StatelessWidget {
-  const _TypeOptionCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(HitoRadius.lg),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(HitoSpacing.md),
-        decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primaryContainer : cardColor(theme),
-          borderRadius: BorderRadius.circular(HitoRadius.lg),
-          border: Border.all(
-            color: selected ? theme.colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-          boxShadow: selected ? null : cardShadow(),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: HitoSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -650,10 +700,17 @@ class _CategoriesStep extends StatelessWidget {
         const SizedBox(height: HitoSpacing.md),
         Row(
           children: [
-            Expanded(child: _MiniStat(label: 'Total', value: formatCurrency(limit))),
-            Expanded(child: _MiniStat(label: 'Asignado', value: formatCurrency(assigned))),
             Expanded(
-              child: _MiniStat(
+              child: StatValue(label: 'Total', value: formatCurrency(limit)),
+            ),
+            Expanded(
+              child: StatValue(
+                label: 'Asignado',
+                value: formatCurrency(assigned),
+              ),
+            ),
+            Expanded(
+              child: StatValue(
                 label: 'Restante',
                 value: formatCurrency(remaining),
                 valueColor: remaining < 0 ? theme.colorScheme.error : null,
@@ -683,9 +740,15 @@ class _CategoriesStep extends StatelessWidget {
                 ),
                 const SizedBox(width: HitoSpacing.sm),
                 Expanded(
-                  child: Text(newCategory?.label ?? 'Elegí categoría', style: theme.textTheme.bodyLarge),
+                  child: Text(
+                    newCategory?.label ?? 'Elegí categoría',
+                    style: theme.textTheme.bodyLarge,
+                  ),
                 ),
-                Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
@@ -732,7 +795,10 @@ class _CategoriesStep extends StatelessWidget {
           const SizedBox(height: HitoSpacing.sm),
           for (final c in categories) ...[
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: HitoSpacing.md,
+                vertical: HitoSpacing.sm,
+              ),
               decoration: BoxDecoration(
                 color: cardColor(theme),
                 borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -746,15 +812,26 @@ class _CategoriesStep extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: HitoSpacing.sm),
-                  Expanded(child: Text(c.categoryLabel, style: theme.textTheme.bodyMedium)),
+                  Expanded(
+                    child: Text(
+                      c.categoryLabel,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
                   Text(
                     formatCurrency(c.limitAmount),
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   IconButton(
                     tooltip: 'Quitar',
                     onPressed: () => onRemove(c.categoryId),
-                    icon: Icon(Icons.close, size: 18, color: theme.colorScheme.error),
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: theme.colorScheme.error,
+                    ),
                   ),
                 ],
               ),
@@ -762,35 +839,6 @@ class _CategoriesStep extends StatelessWidget {
             const SizedBox(height: HitoSpacing.sm),
           ],
         ],
-      ],
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value, this.valueColor});
-
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: 11,
-          ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: valueColor),
-        ),
       ],
     );
   }
@@ -811,14 +859,18 @@ class _GeneralInfoStep extends StatelessWidget {
         const SizedBox(height: HitoSpacing.xs),
         Text(
           'Podés cambiar el tipo más adelante.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: HitoSpacing.lg),
         Text('Presupuesto general', style: theme.textTheme.headlineMedium),
         const SizedBox(height: HitoSpacing.xs),
         Text(
           'Se monitoreará el total acumulado sin distinguir categorías.',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: HitoSpacing.md),
         Container(
@@ -830,7 +882,9 @@ class _GeneralInfoStep extends StatelessWidget {
           ),
           child: Text(
             'Cada gasto que registres se descontará del límite total de ${formatCurrency(limit)}.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer,
+            ),
           ),
         ),
       ],
@@ -867,11 +921,16 @@ class _ConfirmStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Notificaciones y confirmación', style: theme.textTheme.headlineLarge),
+        Text(
+          'Notificaciones y confirmación',
+          style: theme.textTheme.headlineLarge,
+        ),
         const SizedBox(height: HitoSpacing.xs),
         Text(
           'Avisos suaves, cuando los necesités.',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: HitoSpacing.lg),
         Container(
@@ -889,11 +948,15 @@ class _ConfirmStep extends StatelessWidget {
                 value: notifyNearLimit,
                 onChanged: onNotifyNearLimitChanged,
               ),
-              Divider(height: 1, color: theme.colorScheme.outline.withValues(alpha: 0.15)),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.15),
+              ),
               _NotifyRow(
                 icon: Icons.error_outline,
                 title: 'Presupuesto excedido',
-                subtitle: 'Aviso cuando superes el 100%. Sin juicio, con opciones.',
+                subtitle:
+                    'Aviso cuando superes el 100%. Sin juicio, con opciones.',
                 value: notifyExceeded,
                 onChanged: onNotifyExceededChanged,
               ),
@@ -926,13 +989,17 @@ class _ConfirmStep extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 'Hasta ${formatCurrency(limit)} · vence ${endDate == null ? '-' : formatGoalDate(endDate!)}',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               Text(
                 type == BudgetType.byCategory
                     ? '$categoryCount categorías asignadas'
                     : 'Presupuesto general',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -971,10 +1038,17 @@ class _NotifyRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Text(
                   subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),

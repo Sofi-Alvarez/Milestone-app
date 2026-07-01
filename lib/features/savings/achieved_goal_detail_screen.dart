@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../data/goal.dart';
 import '../../data/goals_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/progress_ring.dart';
 import '../home/models/home_models.dart';
 import 'create_goal_screen.dart';
 import 'widgets/goal_form_fields.dart';
-import 'widgets/goal_progress_donut.dart';
 
 void openAchievedGoalDetail(
   BuildContext context, {
@@ -15,7 +15,8 @@ void openAchievedGoalDetail(
 }) {
   Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => AchievedGoalDetailScreen(repository: repository, goal: goal),
+      builder: (_) =>
+          AchievedGoalDetailScreen(repository: repository, goal: goal),
     ),
   );
 }
@@ -39,13 +40,15 @@ class AchievedGoalDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final achievedColor =
-        isDark ? HitoColors.successDark : HitoColors.successLight;
+    final achievedColor = isDark
+        ? HitoColors.successDark
+        : HitoColors.successLight;
     final achievedDate = goal.achievedAt;
     final durationLabel = achievedDate == null
         ? '—'
         : formatDuration(achievedDate.difference(goal.createdAt).inDays);
-    final onTime = goal.targetDate != null &&
+    final onTime =
+        goal.targetDate != null &&
         achievedDate != null &&
         !achievedDate.isAfter(goal.targetDate!);
 
@@ -68,7 +71,10 @@ class AchievedGoalDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(goal.title, style: theme.textTheme.headlineMedium),
+                    child: Text(
+                      goal.title,
+                      style: theme.textTheme.headlineMedium,
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -99,7 +105,12 @@ class AchievedGoalDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: HitoSpacing.lg),
-              const Center(child: GoalProgressDonut(progress: 1)),
+              Center(
+                child: ProgressRing(
+                  progress: 1,
+                  center: Text('100%', style: theme.textTheme.displayMedium),
+                ),
+              ),
               const SizedBox(height: HitoSpacing.md),
               Center(
                 child: Text(
@@ -143,7 +154,9 @@ class AchievedGoalDetailScreen extends StatelessWidget {
                   Expanded(
                     child: _InfoTile(
                       label: 'Fecha alcanzada',
-                      value: achievedDate == null ? '—' : formatGoalDate(achievedDate),
+                      value: achievedDate == null
+                          ? '—'
+                          : formatGoalDate(achievedDate),
                       note: onTime ? 'Lograda en tiempo' : null,
                       noteColor: achievedColor,
                     ),
@@ -214,7 +227,8 @@ class AchievedGoalDetailScreen extends StatelessWidget {
         child: SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => openCreateGoalScreen(context, repository: repository),
+            onPressed: () =>
+                openCreateGoalScreen(context, repository: repository),
             child: const Text('Crear nueva meta'),
           ),
         ),
@@ -257,7 +271,9 @@ class _InfoTile extends StatelessWidget {
           ),
           Text(
             value,
-            style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           Text(
             note ?? '',

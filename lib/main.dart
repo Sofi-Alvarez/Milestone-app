@@ -11,6 +11,7 @@ import 'data/transactions_repository.dart';
 import 'data/user_settings.dart';
 import 'features/auth/auth_service.dart';
 import 'features/onboarding/onboarding_flow.dart';
+import 'features/onboarding/splash_screen.dart';
 import 'features/shell/main_shell.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
@@ -70,7 +71,8 @@ class _RestartWidgetState extends State<RestartWidget> {
   void _restart() => setState(() => _key = UniqueKey());
 
   @override
-  Widget build(BuildContext context) => KeyedSubtree(key: _key, child: widget.child);
+  Widget build(BuildContext context) =>
+      KeyedSubtree(key: _key, child: widget.child);
 }
 
 /// Resuelve el uid de Firebase Auth y arma los repositorios antes de
@@ -87,6 +89,35 @@ class AppBootstrap extends StatefulWidget {
 class _AppBootstrapState extends State<AppBootstrap> {
   late final Future<String?> _uidFuture = _ensureUid();
 
+  /// El magic link no enlaza el uid anónimo con el real — Firebase
+  /// simplemente cambia de usuario. Sin esto, los repositorios se
+  /// quedarían apuntando para siempre al uid anónimo con el que
+  /// arrancó la app, y cada guardado después del login real fallaría
+  /// (permission-denied: el uid del path ya no coincide con
+  /// request.auth.uid). Escuchamos el cambio real de uid acá y
+  /// reconstruimos los repositorios — sin reiniciar toda la app, así
+  /// no se pierde en qué paso del onboarding estaba el usuario.
+  String? _upgradedUid;
+  StreamSubscription<User?>? _authUpgradeSub;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kForceDemoAuth) {
+      _authUpgradeSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+        if (user != null && !user.isAnonymous && user.uid != _upgradedUid) {
+          setState(() => _upgradedUid = user.uid);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _authUpgradeSub?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String?>(
@@ -97,12 +128,14 @@ class _AppBootstrapState extends State<AppBootstrap> {
             home: Scaffold(body: Center(child: CircularProgressIndicator())),
           );
         }
-        final uid = snapshot.data;
+        final uid = _upgradedUid ?? snapshot.data;
         final demoAuth = kForceDemoAuth ? null : FirebaseAuth.instance;
         return HitoApp(
           authService: AuthService(demoAuth),
           goalsRepository: uid == null ? null : GoalsRepository(uid),
-          transactionsRepository: uid == null ? null : TransactionsRepository(uid),
+          transactionsRepository: uid == null
+              ? null
+              : TransactionsRepository(uid),
           settingsRepository: uid == null ? null : UserSettingsRepository(uid),
           budgetsRepository: uid == null ? null : BudgetsRepository(uid),
         );
@@ -186,7 +219,8 @@ class _RootScreenState extends State<RootScreen> {
   /// nueva saltearía el onboarding entero. Esto se decide una sola vez,
   /// al arrancar.
   late final bool _returningUser =
-      _authService.currentUser != null && !_authService.currentUser!.isAnonymous;
+      _authService.currentUser != null &&
+      !_authService.currentUser!.isAnonymous;
 
   /// true cuando el link se confirmó (mismo dispositivo o, en web, otra
   /// pestaña con la misma sesión) — dispara la pantalla "Todo listo",
@@ -202,6 +236,10 @@ class _RootScreenState extends State<RootScreen> {
   bool _justOnboarded = false;
 
   bool _skippedInitialAuthEvent = false;
+
+  /// Se muestra una sola vez, al abrir la app — antes de decidir si
+  /// vamos a Home (usuario recurrente) o al onboarding.
+  bool _showSplash = true;
 
   @override
   void initState() {
@@ -239,6 +277,11 @@ class _RootScreenState extends State<RootScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showSplash) {
+      return SplashScreen(
+        onFinished: () => setState(() => _showSplash = false),
+      );
+    }
     if (_returningUser || _enteredHome) {
       return HomePlaceholder(
         goalsRepository: widget.goalsRepository,

@@ -6,7 +6,11 @@ import '../../../theme/app_theme.dart';
 import '../../home/models/home_models.dart';
 
 class CategorySlice {
-  const CategorySlice({required this.label, required this.amount, required this.color});
+  const CategorySlice({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
 
   final String label;
   final double amount;
@@ -19,7 +23,11 @@ class CategorySlice {
 /// inline (nombre de categoría, sin porcentaje) que se ajusta de a
 /// varias por fila.
 class CategoryDonutChart extends StatefulWidget {
-  const CategoryDonutChart({super.key, required this.slices, required this.centerLabel});
+  const CategoryDonutChart({
+    super.key,
+    required this.slices,
+    required this.centerLabel,
+  });
 
   final List<CategorySlice> slices;
   final String centerLabel;
@@ -70,7 +78,7 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
       padding: const EdgeInsets.all(HitoSpacing.xl),
       decoration: BoxDecoration(
         color: cardColor(theme),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(HitoRadius.hero),
         boxShadow: cardShadow(),
       ),
       child: Column(
@@ -79,13 +87,19 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
             width: 200,
             height: 200,
             child: GestureDetector(
-              onTapUp: (details) => _selectAt(details.localPosition, const Size(200, 200)),
+              onTapUp: (details) =>
+                  _selectAt(details.localPosition, const Size(200, 200)),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   CustomPaint(
                     size: const Size(200, 200),
-                    painter: _DonutPainter(slices: widget.slices, total: total, selected: _selected),
+                    painter: _DonutPainter(
+                      slices: widget.slices,
+                      total: total,
+                      selected: _selected,
+                      emptyTrackColor: recessedColor(theme),
+                    ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
@@ -93,13 +107,17 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
                       Text(
                         selectedSlice?.label ?? widget.centerLabel,
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       Text(
                         total == 0
                             ? 'Sin datos'
                             : formatCurrency(selectedSlice?.amount ?? total),
-                        style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -115,7 +133,8 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
             children: [
               for (var i = 0; i < widget.slices.length; i++)
                 InkWell(
-                  onTap: () => setState(() => _selected = _selected == i ? null : i),
+                  onTap: () =>
+                      setState(() => _selected = _selected == i ? null : i),
                   borderRadius: BorderRadius.circular(HitoRadius.sm),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -125,7 +144,10 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
                         Container(
                           width: 10,
                           height: 10,
-                          decoration: BoxDecoration(color: widget.slices[i].color, shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                            color: widget.slices[i].color,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         const SizedBox(width: HitoSpacing.xs),
                         Text(
@@ -134,7 +156,9 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
                             color: _selected == i
                                 ? theme.colorScheme.onSurface
                                 : theme.colorScheme.onSurfaceVariant,
-                            fontWeight: _selected == i ? FontWeight.w700 : FontWeight.w400,
+                            fontWeight: _selected == i
+                                ? FontWeight.w700
+                                : FontWeight.w400,
                           ),
                         ),
                       ],
@@ -150,11 +174,21 @@ class _CategoryDonutChartState extends State<CategoryDonutChart> {
 }
 
 class _DonutPainter extends CustomPainter {
-  _DonutPainter({required this.slices, required this.total, required this.selected});
+  _DonutPainter({
+    required this.slices,
+    required this.total,
+    required this.selected,
+    required this.emptyTrackColor,
+  });
 
   final List<CategorySlice> slices;
   final double total;
   final int? selected;
+
+  /// Color del track cuando no hay datos — mismo `recessedColor(theme)`
+  /// que ya usa el gauge de Presupuestos para su track vacío. Antes era
+  /// un gris hardcodeado (`#E5E7EB`) sin versión dark mode.
+  final Color emptyTrackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -163,7 +197,7 @@ class _DonutPainter extends CustomPainter {
 
     if (total <= 0) {
       final track = Paint()
-        ..color = const Color(0xFFE5E7EB)
+        ..color = emptyTrackColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth;
       canvas.drawArc(rect.deflate(strokeWidth / 2), 0, 2 * pi, false, track);
@@ -179,12 +213,21 @@ class _DonutPainter extends CustomPainter {
         ..color = isDimmed ? slice.color.withValues(alpha: 0.35) : slice.color
         ..style = PaintingStyle.stroke
         ..strokeWidth = selected == i ? strokeWidth + 6 : strokeWidth;
-      canvas.drawArc(rect.deflate(strokeWidth / 2), startAngle, sweep, false, paint);
+      canvas.drawArc(
+        rect.deflate(strokeWidth / 2),
+        startAngle,
+        sweep,
+        false,
+        paint,
+      );
       startAngle += sweep;
     }
   }
 
   @override
   bool shouldRepaint(covariant _DonutPainter oldDelegate) =>
-      oldDelegate.slices != slices || oldDelegate.total != total || oldDelegate.selected != selected;
+      oldDelegate.slices != slices ||
+      oldDelegate.total != total ||
+      oldDelegate.selected != selected ||
+      oldDelegate.emptyTrackColor != emptyTrackColor;
 }

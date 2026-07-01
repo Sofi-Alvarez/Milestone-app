@@ -8,10 +8,10 @@ enum BudgetStatus { active, paused, cancelled }
 
 extension BudgetStatusLabel on BudgetStatus {
   String get label => switch (this) {
-        BudgetStatus.active => 'Activo',
-        BudgetStatus.paused => 'Pausado',
-        BudgetStatus.cancelled => 'Cancelado',
-      };
+    BudgetStatus.active => 'Activo',
+    BudgetStatus.paused => 'Pausado',
+    BudgetStatus.cancelled => 'Cancelado',
+  };
 }
 
 /// Un renglón de "presupuesto por categorías" — la categoría y el
@@ -37,10 +37,10 @@ class BudgetCategoryAllocation {
   }
 
   Map<String, dynamic> toMap() => {
-        'categoryId': categoryId,
-        'categoryLabel': categoryLabel,
-        'limitAmount': limitAmount,
-      };
+    'categoryId': categoryId,
+    'categoryLabel': categoryLabel,
+    'limitAmount': limitAmount,
+  };
 }
 
 /// Un presupuesto por período — solo puede haber uno activo o pausado
@@ -95,7 +95,8 @@ class Budget {
   /// si no fue cancelado y todavía no pasó su fecha límite.
   bool get isCurrent => status != BudgetStatus.cancelled && !isPastEnd;
 
-  int get daysLeft => endDate.difference(DateTime.now()).inDays.clamp(0, 1 << 30);
+  int get daysLeft =>
+      endDate.difference(DateTime.now()).inDays.clamp(0, 1 << 30);
 
   factory Budget.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
@@ -108,7 +109,8 @@ class Budget {
       ),
       limitAmount: (data['limitAmount'] as num?)?.toDouble() ?? 0,
       startDate: (data['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      endDate: (data['endDate'] as Timestamp?)?.toDate() ??
+      endDate:
+          (data['endDate'] as Timestamp?)?.toDate() ??
           DateTime.now().add(const Duration(days: 30)),
       note: data['note'] as String? ?? '',
       notifyExceeded: data['notifyExceeded'] as bool? ?? true,
@@ -118,7 +120,9 @@ class Budget {
         orElse: () => BudgetStatus.active,
       ),
       categories: (data['categories'] as List<dynamic>? ?? [])
-          .map((c) => BudgetCategoryAllocation.fromMap(c as Map<String, dynamic>))
+          .map(
+            (c) => BudgetCategoryAllocation.fromMap(c as Map<String, dynamic>),
+          )
           .toList(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       pausedAt: (data['pausedAt'] as Timestamp?)?.toDate(),

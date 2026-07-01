@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'app_bottom_sheet.dart';
 import 'logo_mark.dart';
 import 'pwa_install.dart';
 
@@ -9,11 +10,8 @@ import 'pwa_install.dart';
 /// (descargar) y uno secundario para descartarlo. Se muestra una sola
 /// vez, justo al entrar a Home por primera vez tras el onboarding.
 Future<void> showDownloadAppSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    isDismissible: true,
+  return showAppBottomSheet<void>(
+    context,
     builder: (context) => const _DownloadAppSheet(),
   );
 }
@@ -30,7 +28,11 @@ class _DownloadAppSheet extends StatelessWidget {
       Navigator.of(context).pop();
       if (accepted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Listo! Milestone ya está en tu pantalla de inicio.')),
+          const SnackBar(
+            content: Text(
+              '¡Listo! Milestone ya está en tu pantalla de inicio.',
+            ),
+          ),
         );
       }
       return;
@@ -50,9 +52,9 @@ class _DownloadAppSheet extends StatelessWidget {
         content: Text(
           isIOS
               ? 'Tocá el botón Compartir (⬆️) en la barra del navegador y '
-                  'elegí "Agregar a inicio".'
+                    'elegí "Agregar a inicio".'
               : 'Abrí el menú (⋮) de tu navegador y elegí "Instalar app" o '
-                  '"Agregar a pantalla de inicio".',
+                    '"Agregar a pantalla de inicio".',
         ),
         actions: [
           TextButton(
@@ -75,7 +77,12 @@ class _DownloadAppSheet extends StatelessWidget {
           topRight: Radius.circular(32),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        HitoSpacing.lg,
+        HitoSpacing.sm,
+        HitoSpacing.lg,
+        HitoSpacing.lg,
+      ),
       child: SafeArea(
         top: false,
         child: Column(

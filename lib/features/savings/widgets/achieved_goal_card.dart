@@ -19,8 +19,9 @@ class AchievedGoalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final achievedColor =
-        isDark ? HitoColors.successDark : HitoColors.successLight;
+    final achievedColor = isDark
+        ? HitoColors.successDark
+        : HitoColors.successLight;
     final noteColor = theme.colorScheme.onSurfaceVariant;
     final achievedDate = goal.achievedAt;
 
@@ -70,8 +71,18 @@ class AchievedGoalCard extends StatelessWidget {
 
 String formatGoalShortDate(DateTime date) {
   const months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
 }

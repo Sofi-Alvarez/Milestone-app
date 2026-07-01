@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 
 import '../../data/budget.dart';
@@ -8,8 +6,13 @@ import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/action_row.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/confirm_dialog.dart';
+import '../../widgets/progress_ring.dart';
+import '../../widgets/stat_value.dart';
+import '../../widgets/transaction_icon_avatar.dart';
 import '../home/models/home_models.dart';
 import 'budget_history_screen.dart';
 import 'budget_progress.dart';
@@ -36,7 +39,7 @@ void openBudgetDetailScreen(
   );
 }
 
-class BudgetDetailScreen extends StatelessWidget {
+class BudgetDetailScreen extends StatefulWidget {
   const BudgetDetailScreen({
     super.key,
     required this.budgetsRepository,
@@ -54,22 +57,42 @@ class BudgetDetailScreen extends StatelessWidget {
   /// "Pausar", "Cancelar") — es el modo "Cargar un ejemplo".
   final BudgetProgress? exampleProgress;
 
+  @override
+  State<BudgetDetailScreen> createState() => _BudgetDetailScreenState();
+}
+
+enum _BusyAction { pause, cancel }
+
+class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
+  BudgetsRepository get budgetsRepository => widget.budgetsRepository;
+  TransactionsRepository get transactionsRepository =>
+      widget.transactionsRepository;
+  Budget get budget => widget.budget;
+  BudgetProgress? get exampleProgress => widget.exampleProgress;
+
   bool get isExample => exampleProgress != null;
+
+  _BusyAction? _busy;
 
   Future<void> _pause(BuildContext context) async {
     final resume = budget.status == BudgetStatus.paused;
-    if (resume) {
-      await budgetsRepository.resumeBudget(budget.id);
-    } else {
-      await budgetsRepository.pauseBudget(budget.id);
-    }
-    if (context.mounted) {
-      showAppSnackBar(
-        context,
-        resume
-            ? 'Presupuesto reactivado'
-            : 'Presupuesto pausado — los gastos de acá en más no se van a contar hasta que lo reactivés',
-      );
+    setState(() => _busy = _BusyAction.pause);
+    try {
+      if (resume) {
+        await budgetsRepository.resumeBudget(budget.id);
+      } else {
+        await budgetsRepository.pauseBudget(budget.id);
+      }
+      if (context.mounted) {
+        showAppSnackBar(
+          context,
+          resume
+              ? 'Presupuesto reactivado'
+              : 'Presupuesto pausado — los gastos de acá en más no se van a contar hasta que lo reactivés',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = null);
     }
   }
 
@@ -82,18 +105,27 @@ class BudgetDetailScreen extends StatelessWidget {
       destructive: true,
     );
     if (!confirmed || !context.mounted) return;
-    await budgetsRepository.setStatus(budget.id, BudgetStatus.cancelled);
-    if (context.mounted) {
-      showAppSnackBar(context, 'Presupuesto cancelado');
-      Navigator.of(context).pop();
+    setState(() => _busy = _BusyAction.cancel);
+    try {
+      await budgetsRepository.setStatus(budget.id, BudgetStatus.cancelled);
+      if (context.mounted) {
+        showAppSnackBar(context, 'Presupuesto cancelado');
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) setState(() => _busy = null);
     }
   }
 
-  Budget _withCategories(List<BudgetCategoryAllocation> categories) => _copyWith(categories: categories);
+  Budget _withCategories(List<BudgetCategoryAllocation> categories) =>
+      _copyWith(categories: categories);
 
   Budget _withLimit(double limitAmount) => _copyWith(limitAmount: limitAmount);
 
-  Budget _copyWith({List<BudgetCategoryAllocation>? categories, double? limitAmount}) => Budget(
+  Budget _copyWith({
+    List<BudgetCategoryAllocation>? categories,
+    double? limitAmount,
+  }) => Budget(
     id: budget.id,
     name: budget.name,
     type: budget.type,
@@ -113,10 +145,8 @@ class BudgetDetailScreen extends StatelessWidget {
   /// Atajo para "Presupuesto general": ajustar el límite con +/- sin
   /// pasar por el wizard completo de edición.
   Future<void> _quickAdjustLimit(BuildContext context) async {
-    final newLimit = await showModalBottomSheet<double>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final newLimit = await showAppBottomSheet<double>(
+      context,
       builder: (_) => _QuickAdjustLimitSheet(currentLimit: budget.limitAmount),
     );
     if (newLimit == null || !context.mounted) return;
@@ -125,7 +155,11 @@ class BudgetDetailScreen extends StatelessWidget {
       if (context.mounted) showAppSnackBar(context, 'Límite actualizado');
     } catch (e) {
       if (context.mounted) {
-        showAppSnackBar(context, 'No pudimos actualizar el límite: $e', isError: true);
+        showAppSnackBar(
+          context,
+          'No pudimos actualizar el límite: $e',
+          isError: true,
+        );
       }
     }
   }
@@ -147,10 +181,8 @@ class BudgetDetailScreen extends StatelessWidget {
       showAppSnackBar(context, 'No hay categorías con sobrante para reasignar');
       return;
     }
-    final result = await showModalBottomSheet<_ReassignResult>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    final result = await showAppBottomSheet<_ReassignResult>(
+      context,
       builder: (_) => _ReassignFundsSheet(
         target: target,
         candidates: candidates,
@@ -345,7 +377,7 @@ class BudgetDetailScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _ActionRow(
+                ActionRow(
                   icon: Icons.edit_outlined,
                   label: 'Editar presupuesto',
                   onTap: () => openCreateBudgetScreen(
@@ -359,7 +391,7 @@ class BudgetDetailScreen extends StatelessWidget {
                     height: 1,
                     color: theme.colorScheme.outline.withValues(alpha: 0.15),
                   ),
-                  _ActionRow(
+                  ActionRow(
                     icon: Icons.tune,
                     label: 'Ajustar límite',
                     onTap: () => _quickAdjustLimit(context),
@@ -369,30 +401,32 @@ class BudgetDetailScreen extends StatelessWidget {
                   height: 1,
                   color: theme.colorScheme.outline.withValues(alpha: 0.15),
                 ),
-                _ActionRow(
+                ActionRow(
                   icon: budget.status == BudgetStatus.paused
                       ? Icons.play_circle_outline
                       : Icons.pause_circle_outline,
                   label: budget.status == BudgetStatus.paused
                       ? 'Reanudar presupuesto'
                       : 'Pausar presupuesto',
-                  onTap: () => _pause(context),
+                  busy: _busy == _BusyAction.pause,
+                  onTap: _busy != null ? null : () => _pause(context),
                 ),
                 Divider(
                   height: 1,
                   color: theme.colorScheme.outline.withValues(alpha: 0.15),
                 ),
-                _ActionRow(
+                ActionRow(
                   icon: Icons.cancel_outlined,
                   label: 'Cancelar presupuesto',
                   labelColor: theme.colorScheme.error,
-                  onTap: () => _cancel(context),
+                  busy: _busy == _BusyAction.cancel,
+                  onTap: _busy != null ? null : () => _cancel(context),
                 ),
                 Divider(
                   height: 1,
                   color: theme.colorScheme.outline.withValues(alpha: 0.15),
                 ),
-                _ActionRow(
+                ActionRow(
                   icon: Icons.copy_outlined,
                   label: 'Duplicar como nuevo presupuesto',
                   onTap: () => openCreateBudgetScreen(
@@ -438,7 +472,9 @@ class _GaugeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = progressColorFor(context, health);
-    final pillHealth = status == BudgetStatus.paused ? BudgetHealthStatus.onTrack : health;
+    final pillHealth = status == BudgetStatus.paused
+        ? BudgetHealthStatus.onTrack
+        : health;
     final pillLabel = status == BudgetStatus.paused
         ? 'Pausado'
         : switch (health) {
@@ -452,7 +488,7 @@ class _GaugeCard extends StatelessWidget {
       padding: const EdgeInsets.all(HitoSpacing.lg),
       decoration: BoxDecoration(
         color: cardColor(theme),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(HitoRadius.hero),
         boxShadow: cardShadow(),
       ),
       child: Column(
@@ -462,30 +498,24 @@ class _GaugeCard extends StatelessWidget {
             child: BudgetStatusPill(label: pillLabel, health: pillHealth),
           ),
           const SizedBox(height: HitoSpacing.sm),
-          SizedBox(
-            width: 160,
-            height: 160,
-            child: Stack(
-              alignment: Alignment.center,
+          ProgressRing(
+            progress: ratio,
+            color: color,
+            trackColor: recessedColor(theme),
+            center: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CustomPaint(
-                  size: const Size(160, 160),
-                  painter: _GaugePainter(ratio: ratio, color: color, track: recessedColor(theme)),
+                Text(
+                  '${(ratio * 100).round()}%',
+                  style: theme.textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${(ratio * 100).round()}%',
-                      style: theme.textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    Text(
-                      'usado',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'usado',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -499,93 +529,14 @@ class _GaugeCard extends StatelessWidget {
             crossAxisSpacing: HitoSpacing.sm,
             childAspectRatio: 2.4,
             children: [
-              _StatChip(label: 'Gastado', value: formatCurrency(spentTotal)),
-              _StatChip(
+              StatValue(label: 'Gastado', value: formatCurrency(spentTotal)),
+              StatValue(
                 label: remaining >= 0 ? 'Disponible' : 'Excedido por',
                 value: formatCurrency(remaining.abs()),
               ),
-              _StatChip(label: 'Límite', value: formatCurrency(limitAmount)),
-              _StatChip(label: 'Restan', value: daysLeft),
+              StatValue(label: 'Límite', value: formatCurrency(limitAmount)),
+              StatValue(label: 'Restan', value: daysLeft),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GaugePainter extends CustomPainter {
-  _GaugePainter({
-    required this.ratio,
-    required this.color,
-    required this.track,
-  });
-
-  final double ratio;
-  final Color color;
-  final Color track;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    const strokeWidth = 14.0;
-    final trackPaint = Paint()
-      ..color = track
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect.deflate(strokeWidth / 2), 0, 2 * pi, false, trackPaint);
-
-    if (ratio <= 0) return;
-    final valuePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      rect.deflate(strokeWidth / 2),
-      -pi / 2,
-      2 * pi * ratio.clamp(0.0, 1.0),
-      false,
-      valuePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _GaugePainter oldDelegate) =>
-      oldDelegate.ratio != ratio || oldDelegate.color != color;
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(HitoSpacing.md),
-      decoration: BoxDecoration(
-        color: recessedColor(theme),
-        borderRadius: BorderRadius.circular(HitoRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            value,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ],
       ),
@@ -627,13 +578,23 @@ class _QuickAdjustLimitSheetState extends State<_QuickAdjustLimitSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: cardColor(theme),
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
         ),
-        padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          HitoSpacing.lg,
+          HitoSpacing.sm,
+          HitoSpacing.lg,
+          HitoSpacing.lg,
+        ),
         child: SafeArea(
           top: false,
           child: Column(
@@ -661,8 +622,12 @@ class _QuickAdjustLimitSheetState extends State<_QuickAdjustLimitSheet> {
                   ),
                   Expanded(
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: HitoSpacing.sm),
-                      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: HitoSpacing.sm,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: HitoSpacing.md,
+                      ),
                       decoration: BoxDecoration(
                         color: recessedColor(theme),
                         borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -670,7 +635,9 @@ class _QuickAdjustLimitSheetState extends State<_QuickAdjustLimitSheet> {
                       child: TextField(
                         controller: _controller,
                         textAlign: TextAlign.center,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         onChanged: (_) => setState(() {}),
                         style: theme.textTheme.headlineMedium,
                         decoration: const InputDecoration(
@@ -678,7 +645,9 @@ class _QuickAdjustLimitSheetState extends State<_QuickAdjustLimitSheet> {
                           filled: false,
                           border: InputBorder.none,
                           prefixText: '\$ ',
-                          contentPadding: EdgeInsets.symmetric(vertical: HitoSpacing.md),
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: HitoSpacing.md,
+                          ),
                         ),
                       ),
                     ),
@@ -693,7 +662,9 @@ class _QuickAdjustLimitSheetState extends State<_QuickAdjustLimitSheet> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _value > 0 ? () => Navigator.of(context).pop(_value) : null,
+                  onPressed: _value > 0
+                      ? () => Navigator.of(context).pop(_value)
+                      : null,
                   child: const Text('Guardar límite'),
                 ),
               ),
@@ -719,19 +690,20 @@ class _UnassignedSpendRow extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm + 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: HitoSpacing.md,
+        vertical: HitoSpacing.sm + 4,
+      ),
       decoration: BoxDecoration(
         color: recessedColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
       ),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: cardColor(theme), shape: BoxShape.circle),
-            child: Icon(Icons.help_outline, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          TransactionIconAvatar(
+            icon: Icons.help_outline,
+            background: cardColor(theme),
+            iconColor: theme.colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: HitoSpacing.sm),
           Expanded(
@@ -740,18 +712,24 @@ class _UnassignedSpendRow extends StatelessWidget {
               children: [
                 Text(
                   'Fuera de categoría asignada',
-                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 Text(
                   'Igual descuenta del límite general',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
             formatCurrencyCompact(amount),
-            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -868,7 +846,10 @@ class _CategoryDetailRow extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm + 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: HitoSpacing.md,
+        vertical: HitoSpacing.sm + 4,
+      ),
       decoration: BoxDecoration(
         color: cardColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -880,19 +861,10 @@ class _CategoryDetailRow extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  category?.icon ?? Icons.category_outlined,
-                  size: 18,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
+              TransactionIconAvatar(
+                icon: category?.icon ?? Icons.category_outlined,
+                background: theme.colorScheme.primaryContainer,
+                iconColor: theme.colorScheme.onPrimaryContainer,
               ),
               const SizedBox(width: HitoSpacing.sm),
               Expanded(
@@ -925,7 +897,7 @@ class _CategoryDetailRow extends StatelessWidget {
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(9999),
+                    borderRadius: BorderRadius.circular(HitoRadius.full),
                     child: LinearProgressIndicator(
                       value: ratio,
                       minHeight: 6,
@@ -957,55 +929,6 @@ class _CategoryDetailRow extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    this.labelColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color? labelColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: HitoSpacing.md,
-          vertical: HitoSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: labelColor ?? theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: HitoSpacing.md),
-            Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(color: labelColor),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
       ),
     );
   }

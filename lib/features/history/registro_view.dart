@@ -5,6 +5,7 @@ import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/transaction_icon_avatar.dart';
 import '../home/models/home_models.dart';
 import 'scheduled_detail_sheet.dart';
 import 'transaction_detail_sheet.dart';
@@ -12,14 +13,14 @@ import 'widgets/history_filter_sheet.dart';
 
 class _Entry {
   _Entry.transaction(MoneyTransaction t)
-      : transaction = t,
-        scheduled = null,
-        date = t.date;
+    : transaction = t,
+      scheduled = null,
+      date = t.date;
 
   _Entry.scheduled(ScheduledPayment p)
-      : transaction = null,
-        scheduled = p,
-        date = p.effectiveDate;
+    : transaction = null,
+      scheduled = p,
+      date = p.effectiveDate;
 
   final MoneyTransaction? transaction;
   final ScheduledPayment? scheduled;
@@ -90,7 +91,20 @@ class _RegistroViewState extends State<RegistroView> {
     if (day == today) return 'HOY';
     if (day == today.subtract(const Duration(days: 1))) return 'AYER';
     if (today.difference(day).inDays < 7) return 'ESTA SEMANA';
-    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const months = [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic',
+    ];
     return '${date.day} ${months[date.month - 1]}';
   }
 
@@ -103,8 +117,12 @@ class _RegistroViewState extends State<RegistroView> {
     final entries = <_Entry>[];
     if (type != HistoryTypeFilter.scheduled) {
       for (final t in widget.transactions) {
-        if (type == HistoryTypeFilter.income && t.type != TransactionType.income) continue;
-        if (type == HistoryTypeFilter.expense && t.type != TransactionType.expense) continue;
+        if (type == HistoryTypeFilter.income &&
+            t.type != TransactionType.income)
+          continue;
+        if (type == HistoryTypeFilter.expense &&
+            t.type != TransactionType.expense)
+          continue;
         if (!_inRange(t.date)) continue;
         // La transacción que generó un registro programado al
         // aceptarse no se muestra por separado — ese movimiento sigue
@@ -124,7 +142,9 @@ class _RegistroViewState extends State<RegistroView> {
     }
     if (query.isNotEmpty) {
       entries.retainWhere(
-        (e) => e.name.toLowerCase().contains(query) || e.note.toLowerCase().contains(query),
+        (e) =>
+            e.name.toLowerCase().contains(query) ||
+            e.note.toLowerCase().contains(query),
       );
     }
     entries.sort((a, b) => b.date.compareTo(a.date));
@@ -135,7 +155,12 @@ class _RegistroViewState extends State<RegistroView> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HitoSpacing.md, HitoSpacing.lg, HitoSpacing.md, HitoSpacing.xxl),
+      padding: const EdgeInsets.fromLTRB(
+        HitoSpacing.md,
+        HitoSpacing.lg,
+        HitoSpacing.md,
+        HitoSpacing.xxl,
+      ),
       children: [
         Row(
           children: [
@@ -152,7 +177,9 @@ class _RegistroViewState extends State<RegistroView> {
                     borderRadius: BorderRadius.circular(HitoRadius.md),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: HitoSpacing.md - 2),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: HitoSpacing.md - 2,
+                  ),
                 ),
               ),
             ),
@@ -183,7 +210,9 @@ class _RegistroViewState extends State<RegistroView> {
             child: Center(
               child: Text(
                 'No hay registros para este filtro.',
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           )
@@ -203,7 +232,12 @@ class _RegistroViewState extends State<RegistroView> {
                     ),
                   ),
                   Text(
-                    formatCurrency(group.value.fold<double>(0, (sum, e) => sum + e.signedAmount)),
+                    formatCurrency(
+                      group.value.fold<double>(
+                        0,
+                        (sum, e) => sum + e.signedAmount,
+                      ),
+                    ),
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
@@ -252,22 +286,27 @@ class _RecordCard extends StatelessWidget {
         ? (isDark ? HitoColors.successDark : HitoColors.successLight)
         : theme.colorScheme.error;
 
-    final time = formatTime24h(entry.transaction?.date ?? entry.scheduled!.effectiveDate);
+    final time = formatTime24h(
+      entry.transaction?.date ?? entry.scheduled!.effectiveDate,
+    );
     final note = entry.note.trim();
     // Un programado ya aceptado (isActive == false) generó su
     // transacción real — acá se muestra como "Realizado", nunca como
     // "Programado"/"Vencido" otra vez.
     final scheduledStatus = isScheduled
         ? (!entry.scheduled!.isActive
-            ? 'Realizado'
-            : (entry.scheduled!.isDue ? 'Vencido' : 'Programado'))
+              ? 'Realizado'
+              : (entry.scheduled!.isDue ? 'Vencido' : 'Programado'))
         : null;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(HitoRadius.md),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm + 4),
+        padding: const EdgeInsets.symmetric(
+          horizontal: HitoSpacing.md,
+          vertical: HitoSpacing.sm + 4,
+        ),
         decoration: BoxDecoration(
           color: cardColor(theme),
           borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -275,24 +314,22 @@ class _RecordCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isScheduled
-                    ? recessedColor(theme)
-                    : (isIncome ? theme.colorScheme.tertiaryContainer : theme.colorScheme.secondaryContainer),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isScheduled
-                    ? (entry.scheduled!.isActive ? Icons.schedule_outlined : Icons.check)
-                    : (entry.categoryIcon ?? Icons.category_outlined),
-                size: 18,
-                color: isScheduled
-                    ? theme.colorScheme.onSurfaceVariant
-                    : (isIncome ? theme.colorScheme.onTertiaryContainer : theme.colorScheme.onSecondaryContainer),
-              ),
+            TransactionIconAvatar(
+              icon: isScheduled
+                  ? (entry.scheduled!.isActive
+                        ? Icons.schedule_outlined
+                        : Icons.check)
+                  : (entry.categoryIcon ?? Icons.category_outlined),
+              background: isScheduled
+                  ? recessedColor(theme)
+                  : (isIncome
+                        ? theme.colorScheme.tertiaryContainer
+                        : theme.colorScheme.secondaryContainer),
+              iconColor: isScheduled
+                  ? theme.colorScheme.onSurfaceVariant
+                  : (isIncome
+                        ? theme.colorScheme.onTertiaryContainer
+                        : theme.colorScheme.onSecondaryContainer),
             ),
             const SizedBox(width: HitoSpacing.sm),
             Expanded(
@@ -301,7 +338,9 @@ class _RecordCard extends StatelessWidget {
                 children: [
                   Text(
                     entry.name,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Row(
                     children: [
@@ -357,7 +396,10 @@ class _RecordCard extends StatelessWidget {
             const SizedBox(width: HitoSpacing.sm),
             Text(
               '${isIncome ? '+' : '-'}${formatCurrency(entry.signedAmount.abs())}',
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: amountColor,
+              ),
             ),
           ],
         ),

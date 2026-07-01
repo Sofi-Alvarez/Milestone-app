@@ -33,8 +33,9 @@ class SchedulePaymentScreen extends StatefulWidget {
 }
 
 class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
-  late final _nameController =
-      TextEditingController(text: widget.existingPayment?.name ?? '');
+  late final _nameController = TextEditingController(
+    text: widget.existingPayment?.name ?? '',
+  );
   final _nameFocus = FocusNode();
   late final _amountController = TextEditingController(
     text: widget.existingPayment == null
@@ -42,28 +43,33 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
         : formatCurrency(widget.existingPayment!.amount).replaceAll('\$', ''),
   );
   final _amountFocus = FocusNode();
-  late final _noteController =
-      TextEditingController(text: widget.existingPayment?.note ?? '');
+  late final _noteController = TextEditingController(
+    text: widget.existingPayment?.note ?? '',
+  );
   final _noteFocus = FocusNode();
 
-  late TransactionType _type = widget.existingPayment?.type ?? TransactionType.expense;
+  late TransactionType _type =
+      widget.existingPayment?.type ?? TransactionType.expense;
   late TransactionCategory? _category = widget.existingPayment == null
       ? null
       : findCategory(widget.existingPayment!.categoryId);
   late PaymentFrequency _frequency =
       widget.existingPayment?.frequency ?? PaymentFrequency.once;
   late DateTime _date =
-      widget.existingPayment?.date ?? DateTime.now().add(const Duration(days: 1));
+      widget.existingPayment?.date ??
+      DateTime.now().add(const Duration(days: 1));
   late PaymentNotification _notification =
       widget.existingPayment?.notification ?? PaymentNotification.none;
 
   late RecurrenceUnit _recurrenceUnit =
       widget.existingPayment?.recurrenceUnit ?? RecurrenceUnit.monthly;
-  late int _recurrenceInterval = widget.existingPayment?.recurrenceInterval ?? 1;
+  late int _recurrenceInterval =
+      widget.existingPayment?.recurrenceInterval ?? 1;
   late RecurrenceEndType _recurrenceEndType =
       widget.existingPayment?.recurrenceEndType ?? RecurrenceEndType.forever;
   late DateTime? _recurrenceEndDate = widget.existingPayment?.recurrenceEndDate;
-  late int _recurrenceOccurrences = widget.existingPayment?.recurrenceOccurrences ?? 1;
+  late int _recurrenceOccurrences =
+      widget.existingPayment?.recurrenceOccurrences ?? 1;
 
   bool _saving = false;
 
@@ -91,7 +97,9 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
   double get _amount => parseAmountInput(_amountController.text);
 
   bool get _isValid =>
-      _nameController.text.trim().isNotEmpty && _amount > 0 && _category != null;
+      _nameController.text.trim().isNotEmpty &&
+      _amount > 0 &&
+      _category != null;
 
   Future<void> _pickCategory() async {
     final picked = await showCategoryPicker(context, type: _type);
@@ -133,16 +141,22 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
       frequency: _frequency,
       date: _date,
       notification: _notification,
-      recurrenceUnit: _frequency == PaymentFrequency.recurring ? _recurrenceUnit : null,
-      recurrenceInterval:
-          _frequency == PaymentFrequency.recurring ? _recurrenceInterval : null,
-      recurrenceEndType:
-          _frequency == PaymentFrequency.recurring ? _recurrenceEndType : null,
-      recurrenceEndDate: _frequency == PaymentFrequency.recurring &&
+      recurrenceUnit: _frequency == PaymentFrequency.recurring
+          ? _recurrenceUnit
+          : null,
+      recurrenceInterval: _frequency == PaymentFrequency.recurring
+          ? _recurrenceInterval
+          : null,
+      recurrenceEndType: _frequency == PaymentFrequency.recurring
+          ? _recurrenceEndType
+          : null,
+      recurrenceEndDate:
+          _frequency == PaymentFrequency.recurring &&
               _recurrenceEndType == RecurrenceEndType.untilDate
           ? _recurrenceEndDate
           : null,
-      recurrenceOccurrences: _frequency == PaymentFrequency.recurring &&
+      recurrenceOccurrences:
+          _frequency == PaymentFrequency.recurring &&
               _recurrenceEndType == RecurrenceEndType.occurrences
           ? _recurrenceOccurrences
           : null,
@@ -155,7 +169,10 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
     );
     try {
       if (existing != null) {
-        await widget.transactionsRepository.updateScheduledPayment(existing.id, payment);
+        await widget.transactionsRepository.updateScheduledPayment(
+          existing.id,
+          payment,
+        );
       } else {
         await widget.transactionsRepository.createScheduledPayment(payment);
       }
@@ -163,7 +180,9 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
       Navigator.of(context).pop();
       showAppSnackBar(
         context,
-        existing != null ? 'Registro planificado actualizado' : 'Registro planificado guardado',
+        existing != null
+            ? 'Registro planificado actualizado'
+            : 'Registro planificado guardado',
       );
       // Solo al crear desde Registrar: vuelve a Home además de cerrar
       // esta pantalla — es el mismo CTA "Registrar" en otra forma.
@@ -184,7 +203,9 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
       child: Scaffold(
         backgroundColor: pageColor(theme),
         appBar: AppBar(
-          title: Text(_isEditing ? 'Editar registro programado' : 'Programar registro'),
+          title: Text(
+            _isEditing ? 'Editar registro programado' : 'Programar registro',
+          ),
           centerTitle: false,
         ),
         body: SafeArea(
@@ -233,8 +254,14 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
                 SegmentedButton<TransactionType>(
                   showSelectedIcon: false,
                   segments: const [
-                    ButtonSegment(value: TransactionType.income, label: Text('Ingreso')),
-                    ButtonSegment(value: TransactionType.expense, label: Text('Gasto')),
+                    ButtonSegment(
+                      value: TransactionType.income,
+                      label: Text('Ingreso'),
+                    ),
+                    ButtonSegment(
+                      value: TransactionType.expense,
+                      label: Text('Gasto'),
+                    ),
                   ],
                   selected: {_type},
                   onSelectionChanged: (selection) => setState(() {
@@ -294,7 +321,9 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
                   focusNode: _amountFocus,
                   placeholder: '\$ 00,00',
                   isAmount: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 const SizedBox(height: HitoSpacing.lg),
                 Text('Frecuencia', style: theme.textTheme.headlineMedium),
@@ -302,7 +331,10 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
                 SegmentedButton<PaymentFrequency>(
                   showSelectedIcon: false,
                   segments: const [
-                    ButtonSegment(value: PaymentFrequency.once, label: Text('Una vez')),
+                    ButtonSegment(
+                      value: PaymentFrequency.once,
+                      label: Text('Una vez'),
+                    ),
                     ButtonSegment(
                       value: PaymentFrequency.recurring,
                       label: Text('Pago recurrente'),
@@ -351,7 +383,8 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
                         child: _StepperField(
                           label: 'Cada',
                           value: _recurrenceInterval,
-                          onChanged: (v) => setState(() => _recurrenceInterval = v),
+                          onChanged: (v) =>
+                              setState(() => _recurrenceInterval = v),
                         ),
                       ),
                     ],
@@ -369,20 +402,26 @@ class _SchedulePaymentScreenState extends State<SchedulePaymentScreen> {
                   ),
                   if (_recurrenceEndType == RecurrenceEndType.untilDate) ...[
                     const SizedBox(height: HitoSpacing.sm),
-                    GoalDateField(date: _recurrenceEndDate, onTap: _pickRecurrenceEndDate),
+                    GoalDateField(
+                      date: _recurrenceEndDate,
+                      onTap: _pickRecurrenceEndDate,
+                    ),
                   ],
                   if (_recurrenceEndType == RecurrenceEndType.occurrences) ...[
                     const SizedBox(height: HitoSpacing.sm),
                     _StepperField(
                       label: 'Cantidad de eventos',
                       value: _recurrenceOccurrences,
-                      onChanged: (v) => setState(() => _recurrenceOccurrences = v),
+                      onChanged: (v) =>
+                          setState(() => _recurrenceOccurrences = v),
                     ),
                   ],
                 ],
                 const SizedBox(height: HitoSpacing.lg),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HitoSpacing.md,
+                  ),
                   decoration: BoxDecoration(
                     color: recessedColor(theme),
                     borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -464,9 +503,13 @@ class _DropdownField<T> extends StatelessWidget {
             value: value,
             isExpanded: true,
             underline: const SizedBox.shrink(),
-            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
             items: items.entries
-                .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                .map(
+                  (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
+                )
                 .toList(),
             onChanged: (v) {
               if (v != null) onChanged(v);
@@ -502,7 +545,10 @@ class _StepperField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: HitoSpacing.sm, left: HitoSpacing.sm),
+            padding: const EdgeInsets.only(
+              top: HitoSpacing.sm,
+              left: HitoSpacing.sm,
+            ),
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(

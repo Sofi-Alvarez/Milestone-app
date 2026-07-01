@@ -6,16 +6,17 @@ import '../auth/check_email_screen.dart';
 import '../auth/email_screen.dart';
 import 'all_done_screen.dart';
 import 'name_screen.dart';
-import 'splash_screen.dart';
 import 'theme_screen.dart';
 import 'welcome_screen.dart';
 
-enum _OnboardingStep { splash, welcome, email, checkEmail, allDone, name, theme }
+enum _OnboardingStep { welcome, email, checkEmail, allDone, name, theme }
 
 /// Coordina las pantallas del onboarding (ver wireframe de Figma).
 /// El paso `allDone` se alcanza cuando el usuario vuelve a la app
 /// habiendo confirmado el magic link (ver RootScreen en main.dart) —
-/// de ahí pasa a `name` y `theme` antes de entrar de verdad a Home.
+/// de ahí pasa a `name` y `theme` antes de entrar de verdad a Home. El
+/// splash de apertura ya no es parte de este flujo — `RootScreen` lo
+/// muestra una vez, antes de decidir si entra acá o directo a Home.
 class OnboardingFlow extends StatefulWidget {
   const OnboardingFlow({
     super.key,
@@ -41,7 +42,7 @@ class OnboardingFlow extends StatefulWidget {
 }
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
-  _OnboardingStep _step = _OnboardingStep.splash;
+  _OnboardingStep _step = _OnboardingStep.welcome;
   String _email = '';
 
   @override
@@ -55,10 +56,6 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   @override
   Widget build(BuildContext context) {
     switch (_step) {
-      case _OnboardingStep.splash:
-        return SplashScreen(
-          onFinished: () => setState(() => _step = _OnboardingStep.welcome),
-        );
       case _OnboardingStep.welcome:
         return WelcomeScreen(
           onContinue: () => setState(() => _step = _OnboardingStep.email),

@@ -83,6 +83,51 @@ class HitoRadius {
   static const sm = 8.0;
   static const md = 14.0;
   static const lg = 20.0;
+
+  /// Cards de énfasis (headers, gauges, balances) — antes 24/28/32px
+  /// sueltos según la pantalla, sin relación entre sí.
+  static const hero = 28.0;
+
+  static const full = 9999.0;
+}
+
+/// Escala de elevación M3 (dp) — antes solo existían `cardShadow()` y
+/// `heroShadow()` sueltos; esto le da un nombre a cada nivel para que
+/// dialogs, sheets y cards compartan la misma progresión en vez de
+/// depender de los defaults de Material.
+class HitoElevation {
+  static const level0 = 0.0;
+  static const level1 = 1.0;
+  static const level2 = 2.0;
+  static const level3 = 6.0;
+  static const level4 = 12.0;
+}
+
+/// Duraciones de animación centralizadas — reemplaza los `Duration(...)`
+/// que antes vivían hardcodeados en cada widget con animación.
+class HitoMotion {
+  // Escala genérica (Skill 3 — feedback / transición / delight).
+  static const instant = Duration(milliseconds: 100);
+  static const fast = Duration(milliseconds: 200);
+  static const normal = Duration(milliseconds: 300);
+  static const slow = Duration(milliseconds: 500);
+
+  // Duraciones de propósito específico, ya afinadas por producto —
+  // no encajan en la escala genérica pero viven acá para no repetir
+  // el valor mágico en cada archivo.
+  static const staggerFadeIn = Duration(milliseconds: 220);
+  static const staggerItemDelay = Duration(milliseconds: 40);
+  static const strikeThrough = Duration(milliseconds: 320);
+  static const skeletonPulse = Duration(milliseconds: 900);
+  static const scheduledHoldConfirm = Duration(milliseconds: 2400);
+  static const scheduledHoldConfirmReduced = Duration(milliseconds: 500);
+
+  /// Secuencia de entrada del lockup del splash (círculo+cerdito+nombre)
+  /// — calcada del prototipo de Figma: 3000ms totales.
+  static const splashLockupAnimation = Duration(milliseconds: 3000);
+
+  /// Pausa después de que termina de entrar el lockup, antes de navegar.
+  static const splashHold = Duration(milliseconds: 500);
 }
 
 /// Sistema de superficies validado primero en Historial y ahora
@@ -93,27 +138,27 @@ class HitoRadius {
 /// neutro desaturado apenas más oscuro que el fondo — misma
 /// luminosidad aproximada, la tonalidad es lo que marca la diferencia.
 Color pageColor(ThemeData theme) => Color.alphaBlend(
-      theme.colorScheme.primary.withValues(alpha: 0.06),
-      theme.colorScheme.surface,
-    );
+  theme.colorScheme.primary.withValues(alpha: 0.06),
+  theme.colorScheme.surface,
+);
 
 Color cardColor(ThemeData theme) => theme.colorScheme.surface;
 
 Color recessedColor(ThemeData theme) => Color.alphaBlend(
-      Colors.black.withValues(alpha: 0.06),
-      Color.alphaBlend(
-        theme.colorScheme.outline.withValues(alpha: 0.08),
-        theme.colorScheme.surface,
-      ),
-    );
+  Colors.black.withValues(alpha: 0.06),
+  Color.alphaBlend(
+    theme.colorScheme.outline.withValues(alpha: 0.08),
+    theme.colorScheme.surface,
+  ),
+);
 
 List<BoxShadow> cardShadow() => const [
-      BoxShadow(color: Color(0x14000000), blurRadius: 3, offset: Offset(0, 1)),
-    ];
+  BoxShadow(color: Color(0x14000000), blurRadius: 3, offset: Offset(0, 1)),
+];
 
 List<BoxShadow> heroShadow() => const [
-      BoxShadow(color: Color(0x2A000000), blurRadius: 20, offset: Offset(0, 8)),
-    ];
+  BoxShadow(color: Color(0x2A000000), blurRadius: 20, offset: Offset(0, 8)),
+];
 
 /// Segmented toggle único de la app — mismo componente que "Registro /
 /// Estadística" en Historial: pastilla hundida, opción activa en
@@ -184,7 +229,9 @@ class _HitoToggleButton extends StatelessWidget {
         child: Text(
           label,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+            color: selected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurfaceVariant,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
           ),
         ),
@@ -241,9 +288,9 @@ class HitoTheme {
       onSurfaceVariant: HitoColors.onSurfaceVariantDark,
       outline: HitoColors.outlineDark,
     );
-    return _buildTheme(colorScheme).copyWith(
-      scaffoldBackgroundColor: HitoColors.backgroundDark,
-    );
+    return _buildTheme(
+      colorScheme,
+    ).copyWith(scaffoldBackgroundColor: HitoColors.backgroundDark);
   }
 
   static ThemeData _buildTheme(ColorScheme colorScheme) {
@@ -278,8 +325,10 @@ class HitoTheme {
         height: 1.55,
         color: colorScheme.onSurfaceVariant,
       ),
+      // 14px, no 13 — mínimo para contextos secundarios definido en
+      // accesibilidad.md (usuarios 60+ en el público objetivo).
       labelLarge: GoogleFonts.manrope(
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: FontWeight.w500,
         height: 1.4,
         color: colorScheme.onSurface,
@@ -339,10 +388,25 @@ class HitoTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: 2,
+        elevation: HitoElevation.level2,
         shadowColor: HitoColors.neutral900Light.withValues(alpha: 0.12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(HitoRadius.md),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        elevation: HitoElevation.level3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HitoRadius.lg),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        elevation: HitoElevation.level3,
+        modalElevation: HitoElevation.level3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(HitoRadius.lg),
+          ),
         ),
       ),
     );

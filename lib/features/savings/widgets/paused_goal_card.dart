@@ -21,7 +21,9 @@ class PausedGoalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final pausedColor = isDark ? HitoColors.warningDark : HitoColors.warningLight;
+    final pausedColor = isDark
+        ? HitoColors.warningDark
+        : HitoColors.warningLight;
     final noteColor = theme.colorScheme.onSurfaceVariant;
 
     return GoalCardShell(

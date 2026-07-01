@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
+import '../../widgets/selectable_option_card.dart';
 
 /// Última pantalla del onboarding — elegir claro/oscuro antes de
 /// entrar. El cambio se aplica en vivo (mismo [ValueNotifier] que usa
@@ -57,14 +58,14 @@ class ThemeScreen extends StatelessWidget {
                 builder: (context, mode, _) {
                   return Column(
                     children: [
-                      _ThemeOptionCard(
+                      SelectableOptionCard(
                         icon: Icons.light_mode_outlined,
                         title: 'Claro',
                         selected: mode == ThemeMode.light,
                         onTap: () => themeModeNotifier.value = ThemeMode.light,
                       ),
                       const SizedBox(height: HitoSpacing.sm),
-                      _ThemeOptionCard(
+                      SelectableOptionCard(
                         icon: Icons.dark_mode_outlined,
                         title: 'Oscuro',
                         selected: mode == ThemeMode.dark,
@@ -84,57 +85,6 @@ class ThemeScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeOptionCard extends StatelessWidget {
-  const _ThemeOptionCard({
-    required this.icon,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(HitoRadius.lg),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(HitoSpacing.md),
-        decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primaryContainer : cardColor(theme),
-          borderRadius: BorderRadius.circular(HitoRadius.lg),
-          border: Border.all(
-            color: selected ? theme.colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-          boxShadow: selected ? null : cardShadow(),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: HitoSpacing.sm),
-            Text(
-              title,
-              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const Spacer(),
-            if (selected) Icon(Icons.check_circle, color: theme.colorScheme.primary),
-          ],
         ),
       ),
     );

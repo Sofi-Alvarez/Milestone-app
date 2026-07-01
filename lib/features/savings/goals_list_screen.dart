@@ -24,16 +24,26 @@ class GoalsListScreen extends StatefulWidget {
 class _GoalsListScreenState extends State<GoalsListScreen> {
   _GoalsTab _tab = _GoalsTab.active;
 
-  (String, String) _header(int activeCount, int pausedCount, int achievedCount) {
+  (String, String) _header(
+    int activeCount,
+    int pausedCount,
+    int achievedCount,
+  ) {
     switch (_tab) {
       case _GoalsTab.active:
-        return ('¡Metas en progreso!', 'Estás trabajando en $activeCount metas. ¡Sigue así!');
+        return (
+          'Metas en progreso',
+          'Estás trabajando en $activeCount metas. Seguí así.',
+        );
       case _GoalsTab.paused:
-        return ('Metas en pausa', 'Hay $pausedCount metas aguardando tu regreso...');
+        return (
+          'Metas en pausa',
+          'Hay $pausedCount metas aguardando tu regreso...',
+        );
       case _GoalsTab.achieved:
         return (
-          '¡Metas logradas!',
-          'Has completado $achievedCount metas. ¡Sigue así!',
+          'Metas logradas',
+          'Completaste $achievedCount metas. Seguí así.',
         );
     }
   }
@@ -52,11 +62,20 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           final goals = snapshot.data!;
-          final active = goals.where((g) => g.lifecycle == GoalLifecycle.active).toList();
-          final paused = goals.where((g) => g.lifecycle == GoalLifecycle.paused).toList();
-          final achieved =
-              goals.where((g) => g.lifecycle == GoalLifecycle.achieved).toList();
-          final (title, subtitle) = _header(active.length, paused.length, achieved.length);
+          final active = goals
+              .where((g) => g.lifecycle == GoalLifecycle.active)
+              .toList();
+          final paused = goals
+              .where((g) => g.lifecycle == GoalLifecycle.paused)
+              .toList();
+          final achieved = goals
+              .where((g) => g.lifecycle == GoalLifecycle.achieved)
+              .toList();
+          final (title, subtitle) = _header(
+            active.length,
+            paused.length,
+            achieved.length,
+          );
 
           return SafeArea(
             top: false,
@@ -73,9 +92,18 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                   SegmentedButton<_GoalsTab>(
                     showSelectedIcon: false,
                     segments: const [
-                      ButtonSegment(value: _GoalsTab.active, label: Text('Activas')),
-                      ButtonSegment(value: _GoalsTab.paused, label: Text('Pausadas')),
-                      ButtonSegment(value: _GoalsTab.achieved, label: Text('Logradas')),
+                      ButtonSegment(
+                        value: _GoalsTab.active,
+                        label: Text('Activas'),
+                      ),
+                      ButtonSegment(
+                        value: _GoalsTab.paused,
+                        label: Text('Pausadas'),
+                      ),
+                      ButtonSegment(
+                        value: _GoalsTab.achieved,
+                        label: Text('Logradas'),
+                      ),
                     ],
                     selected: {_tab},
                     onSelectionChanged: (selection) =>

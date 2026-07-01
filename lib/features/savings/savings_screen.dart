@@ -6,12 +6,13 @@ import '../../data/goal.dart';
 import '../../data/goals_repository.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/icon_stat_card.dart';
+import '../../widgets/skeleton.dart';
 import 'budget_tab_view.dart';
 import 'create_goal_screen.dart';
 import 'goal_detail_screen.dart';
 import 'goals_list_screen.dart';
 import 'widgets/add_savings_sheet.dart';
-import 'widgets/analysis_card.dart';
 import 'widgets/goal_form_fields.dart';
 import 'widgets/goal_summary_card.dart';
 import 'widgets/total_saved_card.dart';
@@ -59,16 +60,25 @@ class _SavingsScreenState extends State<SavingsScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const Padding(
+              padding: EdgeInsets.all(HitoSpacing.md),
+              child: SkeletonListCardGroup(count: 4),
+            );
           }
           final goals = snapshot.data!;
-          final active = goals.where((g) => g.lifecycle == GoalLifecycle.active).toList();
-          final totalSaved = goals.fold<double>(0, (sum, g) => sum + g.savedAmount);
+          final active = goals
+              .where((g) => g.lifecycle == GoalLifecycle.active)
+              .toList();
+          final totalSaved = goals.fold<double>(
+            0,
+            (sum, g) => sum + g.savedAmount,
+          );
 
           Goal? nextDue;
           for (final g in active) {
             if (g.targetDate == null) continue;
-            if (nextDue == null || g.targetDate!.isBefore(nextDue.targetDate!)) {
+            if (nextDue == null ||
+                g.targetDate!.isBefore(nextDue.targetDate!)) {
               nextDue = g;
             }
           }
@@ -93,12 +103,14 @@ class _SavingsScreenState extends State<SavingsScreen> {
                     selected: _tab,
                     onChanged: (t) => setState(() => _tab = t),
                   ),
-                  if (_tab == _SavingsTab.presupuesto && _explorationBudget != null) ...[
+                  if (_tab == _SavingsTab.presupuesto &&
+                      _explorationBudget != null) ...[
                     const SizedBox(height: HitoSpacing.xs),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        onPressed: () => setState(() => _explorationBudget = null),
+                        onPressed: () =>
+                            setState(() => _explorationBudget = null),
                         icon: const Icon(Icons.close, size: 16),
                         label: const Text('Salir de la exploración'),
                       ),
@@ -110,96 +122,104 @@ class _SavingsScreenState extends State<SavingsScreen> {
                       budgetsRepository: widget.budgetsRepository,
                       transactionsRepository: widget.transactionsRepository,
                       explorationBudget: _explorationBudget,
-                      onLoadExample: () => setState(() => _explorationBudget = buildExampleBudget()),
+                      onLoadExample: () => setState(
+                        () => _explorationBudget = buildExampleBudget(),
+                      ),
                     )
                   else ...[
-                  TotalSavedCard(
-                    total: totalSaved,
-                    monthChangePercent: 0,
-                    onNewGoal: () => openCreateGoalScreen(
-                      context,
-                      repository: widget.goalsRepository,
+                    TotalSavedCard(
+                      total: totalSaved,
+                      monthChangePercent: 0,
+                      onNewGoal: () => openCreateGoalScreen(
+                        context,
+                        repository: widget.goalsRepository,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: HitoSpacing.lg),
-                  Text('Análisis de progreso', style: theme.textTheme.headlineMedium),
-                  const SizedBox(height: HitoSpacing.sm),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AnalysisCard(
-                          icon: Icons.schedule,
-                          label: 'Ritmo actual',
-                          value: nextDue?.paceLabel ?? 'Sin datos',
+                    const SizedBox(height: HitoSpacing.lg),
+                    Text(
+                      'Análisis de progreso',
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: HitoSpacing.sm),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: IconStatCard(
+                            icon: Icons.schedule,
+                            label: 'Ritmo actual',
+                            value: nextDue?.paceLabel ?? 'Sin datos',
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: HitoSpacing.sm),
-                      Expanded(
-                        child: AnalysisCard(
-                          icon: Icons.event_outlined,
-                          label: 'Próximo hito',
-                          value: nextDue == null
-                              ? 'Sin datos'
-                              : formatGoalDate(nextDue.targetDate!),
+                        const SizedBox(width: HitoSpacing.sm),
+                        Expanded(
+                          child: IconStatCard(
+                            icon: Icons.event_outlined,
+                            label: 'Próximo hito',
+                            value: nextDue == null
+                                ? 'Sin datos'
+                                : formatGoalDate(nextDue.targetDate!),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: HitoSpacing.lg),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Proyección de metas', style: theme.textTheme.headlineMedium),
-                      TextButton(
-                        onPressed: goals.isEmpty
-                            ? null
-                            : () => Navigator.of(context).push(
+                      ],
+                    ),
+                    const SizedBox(height: HitoSpacing.lg),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Proyección de metas',
+                          style: theme.textTheme.headlineMedium,
+                        ),
+                        TextButton(
+                          onPressed: goals.isEmpty
+                              ? null
+                              : () => Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => GoalsListScreen(
                                       goalsRepository: widget.goalsRepository,
                                     ),
                                   ),
                                 ),
-                        child: const Text('Ver todo'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: HitoSpacing.sm),
-                  if (active.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(HitoSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: cardColor(theme),
-                        borderRadius: BorderRadius.circular(HitoRadius.md),
-                        boxShadow: cardShadow(),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Todavía no tenés metas activas. ¡Creá la primera!',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          child: const Text('Ver todo'),
                         ),
-                      ),
-                    )
-                  else
-                    for (final goal in active) ...[
-                      GoalSummaryCard(
-                        goal: goal,
-                        onAddSavings: () => addSavingsAndNotify(
-                          context,
-                          repository: widget.goalsRepository,
-                          goalId: goal.id,
-                          goalTitle: goal.title,
+                      ],
+                    ),
+                    const SizedBox(height: HitoSpacing.sm),
+                    if (active.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(HitoSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: cardColor(theme),
+                          borderRadius: BorderRadius.circular(HitoRadius.md),
+                          boxShadow: cardShadow(),
                         ),
-                        onViewDetail: () => openGoalDetail(
-                          context,
-                          repository: widget.goalsRepository,
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Todavía no tenés metas activas. Creá la primera.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    else
+                      for (final goal in active) ...[
+                        GoalSummaryCard(
                           goal: goal,
+                          onAddSavings: () => addSavingsAndNotify(
+                            context,
+                            repository: widget.goalsRepository,
+                            goalId: goal.id,
+                            goalTitle: goal.title,
+                          ),
+                          onViewDetail: () => openGoalDetail(
+                            context,
+                            repository: widget.goalsRepository,
+                            goal: goal,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: HitoSpacing.sm),
-                    ],
+                        const SizedBox(height: HitoSpacing.sm),
+                      ],
                   ],
                 ],
               ),

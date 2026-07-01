@@ -48,8 +48,18 @@ String formatRelativeTime(DateTime date) {
     return d == 1 ? 'Hace 1 día' : 'Hace $d días';
   }
   const months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic',
   ];
   return '${date.day} ${months[date.month - 1]} ${date.year}';
 }
@@ -65,8 +75,18 @@ String formatMovementTimestamp(DateTime date) {
   if (day == today) return 'Hoy, $time';
   if (day == today.subtract(const Duration(days: 1))) return 'Ayer, $time';
   const months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic',
   ];
   return '${date.day} ${months[date.month - 1]}, $time';
 }

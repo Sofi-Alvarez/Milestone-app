@@ -26,7 +26,7 @@ class CardStrikeThrough extends StatefulWidget {
   // Un trazo real es un gesto rápido de la muñeca, no un progreso
   // parejo — sale de golpe y frena en seco al final. 650ms lineales se
   // sentían como una barra de carga, no como un tachón.
-  final Duration drawDuration = const Duration(milliseconds: 320);
+  final Duration drawDuration = HitoMotion.strikeThrough;
 
   @override
   State<CardStrikeThrough> createState() => _CardStrikeThroughState();
@@ -40,7 +40,10 @@ class _CardStrikeThroughState extends State<CardStrikeThrough>
   );
   // Arranca rápido y frena en seco — la curva es lo que hace que se
   // lea como un trazo de una sola pasada en vez de un progreso lineal.
-  late final _curve = CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart);
+  late final _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutQuart,
+  );
   bool _checked = false;
 
   @override
@@ -80,10 +83,7 @@ class _CardStrikeThroughState extends State<CardStrikeThrough>
         final progress = _curve.value;
         return Stack(
           children: [
-            Opacity(
-              opacity: 1 - (progress * 0.35),
-              child: widget.child,
-            ),
+            Opacity(opacity: 1 - (progress * 0.35), child: widget.child),
             if (progress > 0)
               Positioned.fill(
                 child: CustomPaint(

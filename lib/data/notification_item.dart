@@ -24,10 +24,14 @@ class NotificationItem {
     this.todayExpense,
   });
 
-  factory NotificationItem.achievedGoal(Goal goal) =>
-      NotificationItem._(NotificationKind.achievedGoal, goal.achievedAt!, goal: goal);
+  factory NotificationItem.achievedGoal(Goal goal) => NotificationItem._(
+    NotificationKind.achievedGoal,
+    goal.achievedAt!,
+    goal: goal,
+  );
 
-  factory NotificationItem.duePayment(ScheduledPayment payment) => NotificationItem._(
+  factory NotificationItem.duePayment(ScheduledPayment payment) =>
+      NotificationItem._(
         NotificationKind.duePayment,
         payment.nextDueDate,
         payment: payment,
@@ -38,19 +42,22 @@ class NotificationItem {
   factory NotificationItem.lowBalance() =>
       NotificationItem._(NotificationKind.lowBalance, DateTime.now());
 
-  factory NotificationItem.registerReminder(int daysSinceLastRegister) => NotificationItem._(
+  factory NotificationItem.registerReminder(int daysSinceLastRegister) =>
+      NotificationItem._(
         NotificationKind.registerReminder,
         DateTime.now(),
         daysSinceLastRegister: daysSinceLastRegister,
       );
 
-  factory NotificationItem.dailySummary({required double income, required double expense}) =>
-      NotificationItem._(
-        NotificationKind.dailySummary,
-        DateTime.now(),
-        todayIncome: income,
-        todayExpense: expense,
-      );
+  factory NotificationItem.dailySummary({
+    required double income,
+    required double expense,
+  }) => NotificationItem._(
+    NotificationKind.dailySummary,
+    DateTime.now(),
+    todayIncome: income,
+    todayExpense: expense,
+  );
 
   final NotificationKind kind;
   final DateTime timestamp;

@@ -57,7 +57,11 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   @override
   void initState() {
     super.initState();
-    for (final controller in [_titleController, _targetController, _savedController]) {
+    for (final controller in [
+      _titleController,
+      _targetController,
+      _savedController,
+    ]) {
       controller.addListener(() => setState(() {}));
     }
     _titleFocus.addListener(() {
@@ -95,15 +99,18 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
 
   /// El monto ahorrado es el único campo que puede quedar en cero.
   bool get _isFormComplete =>
-      _titleController.text.trim().isNotEmpty && _target > 0 && _targetDate != null;
+      _titleController.text.trim().isNotEmpty &&
+      _target > 0 &&
+      _targetDate != null;
 
   String? get _titleError =>
       _titleTouched && _titleController.text.trim().isEmpty
-          ? 'Ponele un nombre a tu meta'
-          : null;
+      ? 'Ponele un nombre a tu meta'
+      : null;
 
-  String? get _targetError =>
-      _targetTouched && _target <= 0 ? 'El monto de meta tiene que ser mayor a \$0' : null;
+  String? get _targetError => _targetTouched && _target <= 0
+      ? 'El monto de meta tiene que ser mayor a \$0'
+      : null;
 
   bool get _hasChanges {
     return _titleController.text != widget.goal.title ||
@@ -164,41 +171,41 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   }
 
   void _delete() => _confirmAndRun(
-        title: '¿Eliminar meta?',
-        body: 'La meta se eliminará de forma permanente.',
-        confirmLabel: 'Eliminar',
-        destructive: true,
-        onConfirmed: () async {
-          await widget.repository.deleteGoal(widget.goal.id);
-          if (!mounted) return;
-          Navigator.of(context).pop();
-          showAppSnackBar(context, 'Meta eliminada');
-        },
-      );
+    title: '¿Eliminar meta?',
+    body: 'La meta se eliminará de forma permanente.',
+    confirmLabel: 'Eliminar',
+    destructive: true,
+    onConfirmed: () async {
+      await widget.repository.deleteGoal(widget.goal.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showAppSnackBar(context, 'Meta eliminada');
+    },
+  );
 
   void _pause() => _confirmAndRun(
-        title: '¿Pausar meta?',
-        body: 'La meta se mantendrá pausada hasta que la reanudes.',
-        confirmLabel: 'Pausar',
-        onConfirmed: () async {
-          await widget.repository.pauseGoal(widget.goal.id);
-          if (!mounted) return;
-          Navigator.of(context).pop();
-          showAppSnackBar(context, 'Meta pausada');
-        },
-      );
+    title: '¿Pausar meta?',
+    body: 'La meta se mantendrá pausada hasta que la reanudes.',
+    confirmLabel: 'Pausar',
+    onConfirmed: () async {
+      await widget.repository.pauseGoal(widget.goal.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showAppSnackBar(context, 'Meta pausada');
+    },
+  );
 
   void _restart() => _confirmAndRun(
-        title: '¿Reiniciar meta?',
-        body: 'La meta se reiniciará y comenzará de sin ningún ahorro.',
-        confirmLabel: 'Reiniciar',
-        onConfirmed: () async {
-          await widget.repository.restartGoal(widget.goal.id);
-          if (!mounted) return;
-          Navigator.of(context).pop();
-          showAppSnackBar(context, 'Meta reiniciada');
-        },
-      );
+    title: '¿Reiniciar meta?',
+    body: 'La meta se reiniciará y comenzará de sin ningún ahorro.',
+    confirmLabel: 'Reiniciar',
+    onConfirmed: () async {
+      await widget.repository.restartGoal(widget.goal.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showAppSnackBar(context, 'Meta reiniciada');
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +270,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   const SizedBox(height: HitoSpacing.xs),
                   Text(
                     _titleError!,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: HitoSpacing.md),
@@ -273,13 +282,17 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   focusNode: _targetFocus,
                   placeholder: '\$ 00,00',
                   isAmount: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 if (_targetError != null) ...[
                   const SizedBox(height: HitoSpacing.xs),
                   Text(
                     _targetError!,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: HitoSpacing.md),
@@ -289,7 +302,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   focusNode: _savedFocus,
                   placeholder: '\$ 00,00',
                   isAmount: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 if (_savedExceedsTarget) ...[
                   const SizedBox(height: HitoSpacing.xs),
@@ -317,7 +332,11 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: (_hasChanges && !_saving && !_savedExceedsTarget && _isFormComplete)
+              onPressed:
+                  (_hasChanges &&
+                      !_saving &&
+                      !_savedExceedsTarget &&
+                      _isFormComplete)
                   ? _saveChanges
                   : null,
               child: _saving

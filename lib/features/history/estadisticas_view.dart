@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/icon_stat_card.dart';
+import '../../widgets/transaction_icon_avatar.dart';
 import '../home/models/home_models.dart';
 import 'widgets/category_donut_chart.dart';
 import 'widgets/history_filter_sheet.dart';
-import 'widgets/scheduled_counter_card.dart';
 import 'widgets/weekly_flow_chart.dart';
 
 /// Vista "Estadística": saldo, flujo semanal, registros programados,
@@ -40,7 +41,11 @@ class _EstadisticasViewState extends State<EstadisticasView> {
 
   bool _inPeriod(DateTime date) {
     if (_period == null) return true;
-    final filters = HistoryFilters(period: _period, customStart: _customStart, customEnd: _customEnd);
+    final filters = HistoryFilters(
+      period: _period,
+      customStart: _customStart,
+      customEnd: _customEnd,
+    );
     final range = filters.range;
     if (range == null) return true;
     final (start, end) = range;
@@ -50,7 +55,11 @@ class _EstadisticasViewState extends State<EstadisticasView> {
   Future<void> _openPeriodFilter() async {
     final result = await showHistoryFilterSheet(
       context,
-      current: HistoryFilters(period: _period, customStart: _customStart, customEnd: _customEnd),
+      current: HistoryFilters(
+        period: _period,
+        customStart: _customStart,
+        customEnd: _customEnd,
+      ),
       showTypeFilter: false,
     );
     if (result != null) {
@@ -66,22 +75,34 @@ class _EstadisticasViewState extends State<EstadisticasView> {
     final now = DateTime.now();
     const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
     return List.generate(7, (i) {
-      final day = DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - i));
+      final day = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: 6 - i));
       final income = widget.transactions
-          .where((t) =>
-              t.type == TransactionType.income &&
-              t.date.year == day.year &&
-              t.date.month == day.month &&
-              t.date.day == day.day)
+          .where(
+            (t) =>
+                t.type == TransactionType.income &&
+                t.date.year == day.year &&
+                t.date.month == day.month &&
+                t.date.day == day.day,
+          )
           .fold<double>(0, (sum, t) => sum + t.amount);
       final expense = widget.transactions
-          .where((t) =>
-              t.type == TransactionType.expense &&
-              t.date.year == day.year &&
-              t.date.month == day.month &&
-              t.date.day == day.day)
+          .where(
+            (t) =>
+                t.type == TransactionType.expense &&
+                t.date.year == day.year &&
+                t.date.month == day.month &&
+                t.date.day == day.day,
+          )
           .fold<double>(0, (sum, t) => sum + t.amount);
-      return FlowBucket(label: dayLabels[day.weekday - 1], income: income, expense: expense);
+      return FlowBucket(
+        label: dayLabels[day.weekday - 1],
+        income: income,
+        expense: expense,
+      );
     });
   }
 
@@ -98,19 +119,31 @@ class _EstadisticasViewState extends State<EstadisticasView> {
 
     final scheduledTotal = widget.scheduled.length;
     final scheduledDone = widget.scheduled.where((p) => !p.isActive).length;
-    final scheduledPending = widget.scheduled.where((p) => p.isActive && !p.isDue).length;
+    final scheduledPending = widget.scheduled
+        .where((p) => p.isActive && !p.isDue)
+        .length;
 
-    final periodFiltered = widget.transactions.where((t) => _inPeriod(t.date)).toList();
-    final filtered = periodFiltered.where((t) => t.type == _distributionType).toList();
+    final periodFiltered = widget.transactions
+        .where((t) => _inPeriod(t.date))
+        .toList();
+    final filtered = periodFiltered
+        .where((t) => t.type == _distributionType)
+        .toList();
     final byCategory = <String, double>{};
     for (final t in filtered) {
       byCategory[t.categoryId] = (byCategory[t.categoryId] ?? 0) + t.amount;
     }
-    final entries = byCategory.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final entries = byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     final total = filtered.fold<double>(0, (sum, t) => sum + t.amount);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HitoSpacing.md, HitoSpacing.lg, HitoSpacing.md, HitoSpacing.xxl),
+      padding: const EdgeInsets.fromLTRB(
+        HitoSpacing.md,
+        HitoSpacing.lg,
+        HitoSpacing.md,
+        HitoSpacing.xxl,
+      ),
       children: [
         _BalanceCard(
           balance: widget.totalIncome - widget.totalExpense,
@@ -123,8 +156,14 @@ class _EstadisticasViewState extends State<EstadisticasView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Registros programados', style: theme.textTheme.headlineMedium),
-            TextButton(onPressed: widget.onViewAllScheduled, child: const Text('Ver todos')),
+            Text(
+              'Registros programados',
+              style: theme.textTheme.headlineMedium,
+            ),
+            TextButton(
+              onPressed: widget.onViewAllScheduled,
+              child: const Text('Ver todos'),
+            ),
           ],
         ),
         const SizedBox(height: HitoSpacing.sm),
@@ -132,26 +171,29 @@ class _EstadisticasViewState extends State<EstadisticasView> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              ScheduledCounterCard(
+              IconStatCard(
+                width: 124,
                 icon: Icons.event_repeat_outlined,
                 iconColor: theme.colorScheme.primary,
-                iconBg: theme.colorScheme.primaryContainer,
+                iconBackground: theme.colorScheme.primaryContainer,
                 value: '$scheduledTotal',
                 label: 'Programado',
               ),
               const SizedBox(width: HitoSpacing.md),
-              ScheduledCounterCard(
+              IconStatCard(
+                width: 124,
                 icon: Icons.check,
                 iconColor: HitoColors.successLight,
-                iconBg: HitoColors.successContainerLight,
+                iconBackground: HitoColors.successContainerLight,
                 value: '$scheduledDone',
                 label: 'Realizado',
               ),
               const SizedBox(width: HitoSpacing.md),
-              ScheduledCounterCard(
+              IconStatCard(
+                width: 124,
                 icon: Icons.access_time,
                 iconColor: HitoColors.warningLight,
-                iconBg: HitoColors.warningContainerLight,
+                iconBackground: HitoColors.warningContainerLight,
                 value: '$scheduledPending',
                 label: 'Pendiente',
               ),
@@ -201,18 +243,22 @@ class _EstadisticasViewState extends State<EstadisticasView> {
             padding: const EdgeInsets.all(HitoSpacing.xl),
             decoration: BoxDecoration(
               color: cardColor(theme),
-              borderRadius: BorderRadius.circular(32),
+              borderRadius: BorderRadius.circular(HitoRadius.hero),
               boxShadow: cardShadow(),
             ),
             alignment: Alignment.center,
             child: Text(
               'Sin datos para este periodo.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           )
         else
           CategoryDonutChart(
-            centerLabel: _distributionType == TransactionType.expense ? 'Total gastado' : 'Total recibido',
+            centerLabel: _distributionType == TransactionType.expense
+                ? 'Total gastado'
+                : 'Total recibido',
             slices: [
               for (var i = 0; i < entries.length; i++)
                 CategorySlice(
@@ -259,14 +305,14 @@ class _BalanceCard extends StatelessWidget {
       padding: const EdgeInsets.all(HitoSpacing.lg),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(HitoRadius.hero),
         boxShadow: heroShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'SALDO ACTUAL',
+            'DINERO DISPONIBLE',
             style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.onPrimary.withValues(alpha: 0.8),
               letterSpacing: 0.6,
@@ -275,17 +321,27 @@ class _BalanceCard extends StatelessWidget {
           const SizedBox(height: HitoSpacing.xs),
           Text(
             formatCurrency(balance),
-            style: theme.textTheme.displayMedium?.copyWith(color: theme.colorScheme.onPrimary),
+            style: theme.textTheme.displayMedium?.copyWith(
+              color: theme.colorScheme.onPrimary,
+            ),
           ),
           const SizedBox(height: HitoSpacing.md),
           Row(
             children: [
               Expanded(
-                child: _BalanceStat(icon: Icons.arrow_downward, label: 'Ingresos', value: totalIncome),
+                child: _BalanceStat(
+                  icon: Icons.arrow_downward,
+                  label: 'Ingresos',
+                  value: totalIncome,
+                ),
               ),
               const SizedBox(width: HitoSpacing.md),
               Expanded(
-                child: _BalanceStat(icon: Icons.arrow_upward, label: 'Gastos', value: totalExpense),
+                child: _BalanceStat(
+                  icon: Icons.arrow_upward,
+                  label: 'Gastos',
+                  value: totalExpense,
+                ),
               ),
             ],
           ),
@@ -296,7 +352,11 @@ class _BalanceCard extends StatelessWidget {
 }
 
 class _BalanceStat extends StatelessWidget {
-  const _BalanceStat({required this.icon, required this.label, required this.value});
+  const _BalanceStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
@@ -321,13 +381,18 @@ class _BalanceStat extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: theme.textTheme.bodySmall?.copyWith(color: onPrimary.withValues(alpha: 0.8)),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: onPrimary.withValues(alpha: 0.8),
+                ),
               ),
             ],
           ),
           Text(
             formatCurrency(value),
-            style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: onPrimary),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: onPrimary,
+            ),
           ),
         ],
       ),
@@ -364,11 +429,10 @@ class _CategoryRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: colorLight, shape: BoxShape.circle),
-            child: Icon(category?.icon ?? Icons.category_outlined, size: 20, color: color),
+          TransactionIconAvatar(
+            icon: category?.icon ?? Icons.category_outlined,
+            background: colorLight,
+            iconColor: color,
           ),
           const SizedBox(width: HitoSpacing.md),
           Expanded(
@@ -380,11 +444,15 @@ class _CategoryRow extends StatelessWidget {
                   children: [
                     Text(
                       category?.label ?? 'Otros',
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(
                       formatCurrency(amount),
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -393,7 +461,7 @@ class _CategoryRow extends StatelessWidget {
                   children: [
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(9999),
+                        borderRadius: BorderRadius.circular(HitoRadius.full),
                         child: LinearProgressIndicator(
                           value: percent,
                           minHeight: 6,

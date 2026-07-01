@@ -70,7 +70,10 @@ class _EmailScreenState extends State<EmailScreen> {
                 ),
               ),
               const SizedBox(height: HitoSpacing.lg),
-              Text('Entra sin contraseñas', style: theme.textTheme.headlineLarge),
+              Text(
+                'Entra sin contraseñas',
+                style: theme.textTheme.headlineLarge,
+              ),
               const SizedBox(height: HitoSpacing.sm),
               Text(
                 'Te enviaremos un enlace a tu correo. Tocás, y ya estás dentro.',
@@ -79,7 +82,10 @@ class _EmailScreenState extends State<EmailScreen> {
                 ),
               ),
               const SizedBox(height: HitoSpacing.xl),
-              Text('Ingresá correo electrónico', style: theme.textTheme.labelLarge),
+              Text(
+                'Ingresá correo electrónico',
+                style: theme.textTheme.labelLarge,
+              ),
               const SizedBox(height: HitoSpacing.sm),
               TextField(
                 controller: _emailController,

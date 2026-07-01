@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 enum TransactionType { income, expense }
 
 class TransactionCategory {
-  const TransactionCategory({required this.id, required this.label, required this.icon});
+  const TransactionCategory({
+    required this.id,
+    required this.label,
+    required this.icon,
+  });
 
   final String id;
   final String label;
@@ -42,7 +46,11 @@ const expenseCategories = <TransactionCategory>[
     label: 'Vehículo',
     icon: Icons.directions_car_outlined,
   ),
-  TransactionCategory(id: 'viajes', label: 'Viajes', icon: Icons.flight_outlined),
+  TransactionCategory(
+    id: 'viajes',
+    label: 'Viajes',
+    icon: Icons.flight_outlined,
+  ),
   TransactionCategory(
     id: 'familia',
     label: 'Familia y niños',
@@ -53,7 +61,11 @@ const expenseCategories = <TransactionCategory>[
     label: 'Salud',
     icon: Icons.medical_services_outlined,
   ),
-  TransactionCategory(id: 'educacion', label: 'Educación', icon: Icons.school_outlined),
+  TransactionCategory(
+    id: 'educacion',
+    label: 'Educación',
+    icon: Icons.school_outlined,
+  ),
   TransactionCategory(
     id: 'compras',
     label: 'Compras',
@@ -64,13 +76,29 @@ const expenseCategories = <TransactionCategory>[
     label: 'Deportes',
     icon: Icons.sports_soccer_outlined,
   ),
-  TransactionCategory(id: 'belleza', label: 'Belleza', icon: Icons.spa_outlined),
-  TransactionCategory(id: 'trabajo', label: 'Trabajo', icon: Icons.work_outline),
-  TransactionCategory(id: 'otros_gasto', label: 'Otros', icon: Icons.more_horiz),
+  TransactionCategory(
+    id: 'belleza',
+    label: 'Belleza',
+    icon: Icons.spa_outlined,
+  ),
+  TransactionCategory(
+    id: 'trabajo',
+    label: 'Trabajo',
+    icon: Icons.work_outline,
+  ),
+  TransactionCategory(
+    id: 'otros_gasto',
+    label: 'Otros',
+    icon: Icons.more_horiz,
+  ),
 ];
 
 const incomeCategories = <TransactionCategory>[
-  TransactionCategory(id: 'salario', label: 'Salario', icon: Icons.payments_outlined),
+  TransactionCategory(
+    id: 'salario',
+    label: 'Salario',
+    icon: Icons.payments_outlined,
+  ),
   TransactionCategory(
     id: 'negocios',
     label: 'Negocios / Freelance',
@@ -101,7 +129,11 @@ const incomeCategories = <TransactionCategory>[
     label: 'Subsidios / Beneficios',
     icon: Icons.volunteer_activism_outlined,
   ),
-  TransactionCategory(id: 'otros_ingreso', label: 'Otros', icon: Icons.more_horiz),
+  TransactionCategory(
+    id: 'otros_ingreso',
+    label: 'Otros',
+    icon: Icons.more_horiz,
+  ),
 ];
 
 List<TransactionCategory> categoriesFor(TransactionType type) =>

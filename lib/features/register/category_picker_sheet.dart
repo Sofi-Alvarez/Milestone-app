@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../data/transaction_category.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_sheet.dart';
 
 Future<TransactionCategory?> showCategoryPicker(
   BuildContext context, {
   required TransactionType type,
 }) {
-  return showModalBottomSheet<TransactionCategory>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showAppBottomSheet<TransactionCategory>(
+    context,
     builder: (context) => _CategoryPickerSheet(type: type),
   );
 }
@@ -57,7 +56,9 @@ class _CategoryPickerSheet extends StatelessWidget {
             ),
             const SizedBox(height: HitoSpacing.md),
             Text(
-              type == TransactionType.income ? 'Categoría de ingreso' : 'Categoría de gasto',
+              type == TransactionType.income
+                  ? 'Categoría de ingreso'
+                  : 'Categoría de gasto',
               style: theme.textTheme.headlineMedium,
             ),
             const SizedBox(height: HitoSpacing.md),
@@ -89,7 +90,8 @@ class _CategoryPickerSheet extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: 24,
-                            backgroundColor: theme.colorScheme.tertiaryContainer,
+                            backgroundColor:
+                                theme.colorScheme.tertiaryContainer,
                             child: Icon(
                               category.icon,
                               color: theme.colorScheme.onTertiaryContainer,

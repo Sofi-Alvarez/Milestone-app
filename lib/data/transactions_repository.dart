@@ -7,7 +7,7 @@ import 'transaction_category.dart';
 /// y users/{uid}/scheduledPayments.
 class TransactionsRepository {
   TransactionsRepository(this.uid, {FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final String uid;
   final FirebaseFirestore _firestore;
@@ -59,9 +59,11 @@ class TransactionsRepository {
     });
   }
 
-  Future<void> deleteTransaction(String id) => _transactionsRef.doc(id).delete();
+  Future<void> deleteTransaction(String id) =>
+      _transactionsRef.doc(id).delete();
 
-  Future<void> deleteScheduledPayment(String id) => _scheduledRef.doc(id).delete();
+  Future<void> deleteScheduledPayment(String id) =>
+      _scheduledRef.doc(id).delete();
 
   Stream<List<MoneyTransaction>> watchTransactions({int limit = 50}) {
     return _transactionsRef
@@ -75,10 +77,10 @@ class TransactionsRepository {
   /// negativos) — el "Dinero disponible" real del Home.
   Stream<double> watchBalance() {
     return _transactionsRef.snapshots().map(
-          (s) => s.docs
-              .map(MoneyTransaction.fromFirestore)
-              .fold<double>(0, (total, t) => total + t.signedAmount),
-        );
+      (s) => s.docs
+          .map(MoneyTransaction.fromFirestore)
+          .fold<double>(0, (total, t) => total + t.signedAmount),
+    );
   }
 
   Future<String> createScheduledPayment(ScheduledPayment payment) async {
@@ -139,7 +141,8 @@ class TransactionsRepository {
     );
     final seriesEnded = switch (payment.recurrenceEndType) {
       RecurrenceEndType.untilDate =>
-        payment.recurrenceEndDate != null && next.isAfter(payment.recurrenceEndDate!),
+        payment.recurrenceEndDate != null &&
+            next.isAfter(payment.recurrenceEndDate!),
       RecurrenceEndType.occurrences =>
         (payment.recurrenceOccurrences ?? 1) <= 1,
       _ => false,
@@ -157,7 +160,9 @@ class TransactionsRepository {
   /// El usuario pospone el registro planificado a otra fecha, sin
   /// crear ninguna transacción todavía.
   Future<void> rescheduleScheduledPayment(String id, DateTime newDate) {
-    return _scheduledRef.doc(id).update({'nextDueDate': Timestamp.fromDate(newDate)});
+    return _scheduledRef.doc(id).update({
+      'nextDueDate': Timestamp.fromDate(newDate),
+    });
   }
 
   /// Edición rápida desde el detalle (monto/categoría/próxima fecha) —

@@ -4,6 +4,7 @@ import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/thousands_input_formatter.dart';
 import '../home/models/home_models.dart';
@@ -17,10 +18,8 @@ Future<void> openTransactionDetailSheet(
   required TransactionsRepository transactionsRepository,
   required MoneyTransaction transaction,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showAppBottomSheet<void>(
+    context,
     builder: (context) => _TransactionDetailSheet(
       transactionsRepository: transactionsRepository,
       transaction: transaction,
@@ -29,13 +28,17 @@ Future<void> openTransactionDetailSheet(
 }
 
 class _TransactionDetailSheet extends StatefulWidget {
-  const _TransactionDetailSheet({required this.transactionsRepository, required this.transaction});
+  const _TransactionDetailSheet({
+    required this.transactionsRepository,
+    required this.transaction,
+  });
 
   final TransactionsRepository transactionsRepository;
   final MoneyTransaction transaction;
 
   @override
-  State<_TransactionDetailSheet> createState() => _TransactionDetailSheetState();
+  State<_TransactionDetailSheet> createState() =>
+      _TransactionDetailSheetState();
 }
 
 class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
@@ -54,7 +57,9 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
     final t = widget.transaction;
     _type = t.type;
     _category = findCategory(t.categoryId);
-    _amountController = TextEditingController(text: formatCurrency(t.amount).replaceAll('\$', ''));
+    _amountController = TextEditingController(
+      text: formatCurrency(t.amount).replaceAll('\$', ''),
+    );
     _noteController = TextEditingController(text: t.note);
     _date = t.date;
   }
@@ -93,7 +98,15 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
     if (picked != null) {
-      setState(() => _date = DateTime(picked.year, picked.month, picked.day, _date.hour, _date.minute));
+      setState(
+        () => _date = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _date.hour,
+          _date.minute,
+        ),
+      );
     }
   }
 
@@ -127,7 +140,9 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
       destructive: true,
     );
     if (!confirmed) return;
-    await widget.transactionsRepository.deleteTransaction(widget.transaction.id);
+    await widget.transactionsRepository.deleteTransaction(
+      widget.transaction.id,
+    );
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -139,13 +154,23 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
       // Empuja el sheet hacia arriba cuando aparece el teclado, para
       // que el campo que se está editando (ej. la nota) nunca quede
       // tapado.
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: cardColor(theme),
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
         ),
-        padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          HitoSpacing.lg,
+          HitoSpacing.sm,
+          HitoSpacing.lg,
+          HitoSpacing.lg,
+        ),
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(
@@ -167,12 +192,18 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('Detalle del registro', style: theme.textTheme.headlineMedium),
+                      child: Text(
+                        'Detalle del registro',
+                        style: theme.textTheme.headlineMedium,
+                      ),
                     ),
                     IconButton(
                       tooltip: 'Eliminar registro',
                       onPressed: _delete,
-                      icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: theme.colorScheme.error,
+                      ),
                     ),
                   ],
                 ),
@@ -189,7 +220,9 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                 AnimatedBuilder(
                   animation: _amountFocus,
                   builder: (context, child) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.sm),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: HitoSpacing.sm,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(HitoRadius.md),
                       border: Border.all(
@@ -214,7 +247,9 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                           controller: _amountController,
                           focusNode: _amountFocus,
                           textAlign: TextAlign.left,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           inputFormatters: [ThousandsInputFormatter()],
                           style: theme.textTheme.headlineMedium,
                           decoration: const InputDecoration(
@@ -252,7 +287,10 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                     ),
                     child: Row(
                       children: [
-                        Icon(_category?.icon ?? Icons.category_outlined, color: theme.colorScheme.onSurfaceVariant),
+                        Icon(
+                          _category?.icon ?? Icons.category_outlined,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: HitoSpacing.sm),
                         Expanded(
                           child: Text(
@@ -260,7 +298,10 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                             style: theme.textTheme.bodyMedium,
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.chevron_right,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ],
                     ),
                   ),
@@ -278,16 +319,25 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(formatGoalDate(_date), style: theme.textTheme.bodyMedium),
+                          child: Text(
+                            formatGoalDate(_date),
+                            style: theme.textTheme.bodyMedium,
+                          ),
                         ),
-                        Icon(Icons.calendar_today_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: HitoSpacing.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HitoSpacing.md,
+                  ),
                   decoration: BoxDecoration(
                     color: recessedColor(theme),
                     borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -311,7 +361,10 @@ class _TransactionDetailSheetState extends State<_TransactionDetailSheet> {
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Guardar cambios'),
                   ),

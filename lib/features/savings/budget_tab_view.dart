@@ -6,6 +6,8 @@ import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/skeleton.dart';
+import '../../widgets/stat_value.dart';
 import '../home/models/home_models.dart';
 import 'budget_detail_screen.dart';
 import 'budget_history_screen.dart';
@@ -53,11 +55,9 @@ class BudgetTabView extends StatelessWidget {
         // trata igual que "todavía no llegó nada" (queda cargando para
         // siempre). `connectionState` es la señal correcta de espera.
         if (budgetSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(HitoSpacing.xl),
-              child: CircularProgressIndicator(),
-            ),
+          return const Padding(
+            padding: EdgeInsets.all(HitoSpacing.md),
+            child: SkeletonListCardGroup(count: 3),
           );
         }
         final budget = budgetSnapshot.data;
@@ -203,7 +203,7 @@ class _EmptyBudgetState extends StatelessWidget {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: onLoadExample,
-                  child: const Text('✨  Cargar un ejemplo para explorar'),
+                  child: const Text('Cargar un ejemplo'),
                 ),
               ),
             ],
@@ -340,14 +340,14 @@ class _ActiveBudgetView extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _ChipStat(
+                      child: StatValue(
                         label: remaining >= 0 ? 'Disponible' : 'Excedido por',
                         value: formatCurrency(remaining.abs()),
                       ),
                     ),
                     const SizedBox(width: HitoSpacing.sm),
                     Expanded(
-                      child: _ChipStat(
+                      child: StatValue(
                         label: 'Restan',
                         value: budget.isPastEnd
                             ? 'Vencido'
@@ -421,42 +421,6 @@ class _ActiveBudgetView extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ChipStat extends StatelessWidget {
-  const _ChipStat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(HitoSpacing.sm),
-      decoration: BoxDecoration(
-        color: recessedColor(theme),
-        borderRadius: BorderRadius.circular(HitoRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -625,7 +589,7 @@ class _CategoryMiniRow extends StatelessWidget {
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(9999),
+                    borderRadius: BorderRadius.circular(HitoRadius.full),
                     child: LinearProgressIndicator(
                       value: ratio,
                       minHeight: 6,

@@ -34,7 +34,9 @@ class MoneyTransaction {
   /// transacciones da directamente el balance ("Dinero disponible").
   double get signedAmount => type == TransactionType.income ? amount : -amount;
 
-  factory MoneyTransaction.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory MoneyTransaction.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data()!;
     return MoneyTransaction(
       id: doc.id,
@@ -72,18 +74,40 @@ enum RecurrenceUnit { daily, weekly, monthly, yearly }
 
 enum RecurrenceEndType { forever, untilDate, occurrences }
 
-enum PaymentNotification { none, onDueDate, oneDayBefore, threeDaysBefore, oneWeekBefore }
+enum PaymentNotification {
+  none,
+  onDueDate,
+  oneDayBefore,
+  threeDaysBefore,
+  oneWeekBefore,
+}
 
-DateTime addRecurrenceInterval(DateTime date, RecurrenceUnit unit, int interval) {
+DateTime addRecurrenceInterval(
+  DateTime date,
+  RecurrenceUnit unit,
+  int interval,
+) {
   switch (unit) {
     case RecurrenceUnit.daily:
       return date.add(Duration(days: interval));
     case RecurrenceUnit.weekly:
       return date.add(Duration(days: 7 * interval));
     case RecurrenceUnit.monthly:
-      return DateTime(date.year, date.month + interval, date.day, date.hour, date.minute);
+      return DateTime(
+        date.year,
+        date.month + interval,
+        date.day,
+        date.hour,
+        date.minute,
+      );
     case RecurrenceUnit.yearly:
-      return DateTime(date.year + interval, date.month, date.day, date.hour, date.minute);
+      return DateTime(
+        date.year + interval,
+        date.month,
+        date.day,
+        date.hour,
+        date.minute,
+      );
   }
 }
 
@@ -145,9 +169,12 @@ class ScheduledPayment {
 
   /// La fecha "real" de este registro para agrupar/ordenar en listas:
   /// la de aceptación si ya fue realizado, si no la próxima fecha.
-  DateTime get effectiveDate => (!isActive ? lastAcceptedAt : null) ?? nextDueDate;
+  DateTime get effectiveDate =>
+      (!isActive ? lastAcceptedAt : null) ?? nextDueDate;
 
-  factory ScheduledPayment.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory ScheduledPayment.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data()!;
     return ScheduledPayment(
       id: doc.id,
@@ -170,7 +197,9 @@ class ScheduledPayment {
       ),
       recurrenceUnit: data['recurrenceUnit'] == null
           ? null
-          : RecurrenceUnit.values.firstWhere((e) => e.name == data['recurrenceUnit']),
+          : RecurrenceUnit.values.firstWhere(
+              (e) => e.name == data['recurrenceUnit'],
+            ),
       recurrenceInterval: (data['recurrenceInterval'] as num?)?.toInt(),
       recurrenceEndType: data['recurrenceEndType'] == null
           ? null
@@ -181,7 +210,8 @@ class ScheduledPayment {
       recurrenceOccurrences: (data['recurrenceOccurrences'] as num?)?.toInt(),
       note: data['note'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      nextDueDate: (data['nextDueDate'] as Timestamp?)?.toDate() ??
+      nextDueDate:
+          (data['nextDueDate'] as Timestamp?)?.toDate() ??
           (data['date'] as Timestamp?)?.toDate() ??
           DateTime.now(),
       isActive: data['isActive'] as bool? ?? true,
@@ -224,15 +254,18 @@ class ScheduledPayment {
       'notification': notification.name,
       if (recurrenceUnit != null) 'recurrenceUnit': recurrenceUnit!.name,
       if (recurrenceInterval != null) 'recurrenceInterval': recurrenceInterval,
-      if (recurrenceEndType != null) 'recurrenceEndType': recurrenceEndType!.name,
+      if (recurrenceEndType != null)
+        'recurrenceEndType': recurrenceEndType!.name,
       if (recurrenceEndDate != null)
         'recurrenceEndDate': Timestamp.fromDate(recurrenceEndDate!),
-      if (recurrenceOccurrences != null) 'recurrenceOccurrences': recurrenceOccurrences,
+      if (recurrenceOccurrences != null)
+        'recurrenceOccurrences': recurrenceOccurrences,
       'note': note,
       'createdAt': Timestamp.fromDate(createdAt),
       'nextDueDate': Timestamp.fromDate(nextDueDate),
       'isActive': isActive,
-      if (lastAcceptedAt != null) 'lastAcceptedAt': Timestamp.fromDate(lastAcceptedAt!),
+      if (lastAcceptedAt != null)
+        'lastAcceptedAt': Timestamp.fromDate(lastAcceptedAt!),
     };
   }
 }

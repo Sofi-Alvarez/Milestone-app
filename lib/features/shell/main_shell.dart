@@ -106,10 +106,7 @@ class _MainShellState extends State<MainShell> {
       body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: _index == registerIndex
           ? null
-          : HitoBottomNavBar(
-              currentIndex: _index,
-              onTap: _goTo,
-            ),
+          : HitoBottomNavBar(currentIndex: _index, onTap: _goTo),
     );
   }
 }

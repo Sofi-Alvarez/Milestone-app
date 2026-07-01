@@ -12,6 +12,8 @@ import '../../data/notifications_read_state.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/card_strike_through.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../widgets/stat_value.dart';
+import '../../widgets/transaction_icon_avatar.dart';
 import '../history/scheduled_detail_sheet.dart';
 import '../history/transaction_detail_sheet.dart';
 import '../notifications/notification_items_builder.dart';
@@ -107,7 +109,9 @@ class HomeScreen extends StatelessWidget {
                               builder: (context, settingsSnapshot) {
                                 final name = settingsSnapshot.data?.name ?? '';
                                 return Text(
-                                  name.isEmpty ? 'Bienvenido' : 'Bienvenido, $name',
+                                  name.isEmpty
+                                      ? 'Bienvenido'
+                                      : 'Bienvenido, $name',
                                   style: theme.textTheme.bodyLarge?.copyWith(
                                     color: theme.colorScheme.onPrimary,
                                   ),
@@ -133,7 +137,8 @@ class HomeScreen extends StatelessWidget {
                               ),
                               child: IntrinsicHeight(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     // El fondo primary se extiende hasta abajo de la
                                     // card jerárquica — el "sheet" de abajo (fondo
@@ -149,13 +154,16 @@ class HomeScreen extends StatelessWidget {
                                       ),
                                       color: theme.colorScheme.primary,
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Tu progreso actual',
                                             style: theme.textTheme.bodyMedium
                                                 ?.copyWith(
-                                                  color: theme.colorScheme.onPrimary,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onPrimary,
                                                 ),
                                           ),
                                           Text(
@@ -164,10 +172,14 @@ class HomeScreen extends StatelessWidget {
                                                 : 'Metas inactivas',
                                             style: theme.textTheme.headlineLarge
                                                 ?.copyWith(
-                                                  color: theme.colorScheme.onPrimary,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onPrimary,
                                                 ),
                                           ),
-                                          const SizedBox(height: HitoSpacing.lg),
+                                          const SizedBox(
+                                            height: HitoSpacing.lg,
+                                          ),
                                           _FeaturedGoalCard(
                                             goal: featured,
                                             onPrimaryAction: () {
@@ -193,8 +205,12 @@ class HomeScreen extends StatelessWidget {
                                         decoration: BoxDecoration(
                                           color: pageColor(theme),
                                           borderRadius: const BorderRadius.only(
-                                            topLeft: Radius.circular(HitoRadius.lg),
-                                            topRight: Radius.circular(HitoRadius.lg),
+                                            topLeft: Radius.circular(
+                                              HitoRadius.lg,
+                                            ),
+                                            topRight: Radius.circular(
+                                              HitoRadius.lg,
+                                            ),
                                           ),
                                         ),
                                         padding: const EdgeInsets.fromLTRB(
@@ -207,151 +223,191 @@ class HomeScreen extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.stretch,
                                           children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _StatTile(
-                                              label: 'Ahorro mensual',
-                                              // Nunca mostrar "$0,00" — sin actividad
-                                              // este mes, es "sin datos", no cero.
-                                              value: monthMovements.isEmpty
-                                                  ? 'Sin datos'
-                                                  : formatCurrency(
-                                                      monthlySavings,
-                                                    ),
-                                              onTap: onOpenSavings,
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: StatValue(
+                                                    label: 'Ahorro mensual',
+                                                    // Nunca mostrar "$0,00" — sin actividad
+                                                    // este mes, es "sin datos", no cero.
+                                                    value:
+                                                        monthMovements.isEmpty
+                                                        ? 'Sin datos'
+                                                        : formatCurrency(
+                                                            monthlySavings,
+                                                          ),
+                                                    background: theme
+                                                        .colorScheme
+                                                        .primaryContainer,
+                                                    foreground: theme
+                                                        .colorScheme
+                                                        .onPrimaryContainer,
+                                                    onTap: onOpenSavings,
+                                                  ),
+                                                ),
+                                                const SizedBox(
+                                                  width: HitoSpacing.sm,
+                                                ),
+                                                // "Dinero disponible" = ingresos
+                                                // menos gastos registrados en
+                                                // Registrar. Si no hay ningún
+                                                // registro todavía es "Sin datos",
+                                                // no "$0,00" (balance real distinto
+                                                // de ausencia de datos).
+                                                Expanded(
+                                                  child: StreamBuilder<List<MoneyTransaction>>(
+                                                    stream:
+                                                        transactionsRepository
+                                                            .watchTransactions(),
+                                                    builder: (context, txSnapshot) {
+                                                      final transactions =
+                                                          txSnapshot.data ??
+                                                          const <
+                                                            MoneyTransaction
+                                                          >[];
+                                                      final balance =
+                                                          transactions.fold<
+                                                            double
+                                                          >(
+                                                            0,
+                                                            (total, t) =>
+                                                                total +
+                                                                t.signedAmount,
+                                                          );
+                                                      return StatValue(
+                                                        label:
+                                                            'Dinero disponible',
+                                                        value:
+                                                            transactions.isEmpty
+                                                            ? 'Sin datos'
+                                                            : formatCurrency(
+                                                                balance,
+                                                              ),
+                                                        background: theme
+                                                            .colorScheme
+                                                            .primaryContainer,
+                                                        foreground: theme
+                                                            .colorScheme
+                                                            .onPrimaryContainer,
+                                                        onTap:
+                                                            onOpenHistoryStats,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                          ),
-                                          const SizedBox(width: HitoSpacing.sm),
-                                          // "Dinero disponible" = ingresos
-                                          // menos gastos registrados en
-                                          // Registrar. Si no hay ningún
-                                          // registro todavía es "Sin datos",
-                                          // no "$0,00" (balance real distinto
-                                          // de ausencia de datos).
-                                          Expanded(
-                                            child: StreamBuilder<
-                                                List<MoneyTransaction>>(
+                                            StreamBuilder<
+                                              List<ScheduledPayment>
+                                            >(
                                               stream: transactionsRepository
-                                                  .watchTransactions(),
-                                              builder:
-                                                  (context, txSnapshot) {
-                                                final transactions =
-                                                    txSnapshot.data ??
-                                                        const <MoneyTransaction>[];
-                                                final balance = transactions
-                                                    .fold<double>(
-                                                  0,
-                                                  (total, t) =>
-                                                      total + t.signedAmount,
-                                                );
-                                                return _StatTile(
-                                                  label: 'Dinero disponible',
-                                                  value: transactions.isEmpty
-                                                      ? 'Sin datos'
-                                                      : formatCurrency(
-                                                          balance,
+                                                  .watchDueScheduledPayments(),
+                                              builder: (context, dueSnapshot) {
+                                                final due =
+                                                    dueSnapshot.data ??
+                                                    const <ScheduledPayment>[];
+                                                if (due.isEmpty) {
+                                                  return const SizedBox.shrink();
+                                                }
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: HitoSpacing.md,
+                                                      ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'Registros pendientes',
+                                                        style: theme
+                                                            .textTheme
+                                                            .headlineMedium,
+                                                      ),
+                                                      const SizedBox(
+                                                        height: HitoSpacing.sm,
+                                                      ),
+                                                      for (
+                                                        var i = 0;
+                                                        i < due.length;
+                                                        i++
+                                                      ) ...[
+                                                        StaggeredFadeIn(
+                                                          index: i,
+                                                          child: _DuePaymentCard(
+                                                            payment: due[i],
+                                                            transactionsRepository:
+                                                                transactionsRepository,
+                                                          ),
                                                         ),
-                                                  onTap: onOpenHistoryStats,
+                                                        const SizedBox(
+                                                          height:
+                                                              HitoSpacing.sm,
+                                                        ),
+                                                      ],
+                                                    ],
+                                                  ),
                                                 );
                                               },
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      StreamBuilder<List<ScheduledPayment>>(
-                                        stream: transactionsRepository
-                                            .watchDueScheduledPayments(),
-                                        builder: (context, dueSnapshot) {
-                                          final due = dueSnapshot.data ??
-                                              const <ScheduledPayment>[];
-                                          if (due.isEmpty) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: HitoSpacing.md,
+                                            const SizedBox(
+                                              height: HitoSpacing.md,
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Registros pendientes',
-                                                  style: theme
-                                                      .textTheme.headlineMedium,
-                                                ),
-                                                const SizedBox(
-                                                  height: HitoSpacing.sm,
-                                                ),
-                                                for (var i = 0;
-                                                    i < due.length;
-                                                    i++) ...[
-                                                  StaggeredFadeIn(
-                                                    index: i,
-                                                    child: _DuePaymentCard(
-                                                      payment: due[i],
+                                            StreamBuilder<
+                                              List<MoneyTransaction>
+                                            >(
+                                              stream: transactionsRepository
+                                                  .watchTransactions(limit: 20),
+                                              builder: (context, txSnapshot) {
+                                                final allTx =
+                                                    txSnapshot.data ??
+                                                    const <MoneyTransaction>[];
+                                                return StreamBuilder<
+                                                  List<ScheduledPayment>
+                                                >(
+                                                  stream: transactionsRepository
+                                                      .watchScheduledPayments(),
+                                                  builder: (context, schedSnapshot) {
+                                                    final scheduled =
+                                                        schedSnapshot.data ??
+                                                        const <
+                                                          ScheduledPayment
+                                                        >[];
+                                                    final recent =
+                                                        _buildRecentEntries(
+                                                          allTx,
+                                                          scheduled,
+                                                        );
+                                                    return _RecentEntriesSection(
+                                                      recent: recent,
+                                                      onViewHistory:
+                                                          onViewHistory,
                                                       transactionsRepository:
                                                           transactionsRepository,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(
-                                                    height: HitoSpacing.sm,
-                                                  ),
-                                                ],
-                                              ],
+                                                    );
+                                                  },
+                                                );
+                                              },
                                             ),
-                                          );
-                                        },
+                                          ],
+                                        ),
                                       ),
-                                      const SizedBox(height: HitoSpacing.md),
-                                      StreamBuilder<List<MoneyTransaction>>(
-                                        stream: transactionsRepository
-                                            .watchTransactions(limit: 20),
-                                        builder: (context, txSnapshot) {
-                                          final allTx = txSnapshot.data ??
-                                              const <MoneyTransaction>[];
-                                          return StreamBuilder<
-                                              List<ScheduledPayment>>(
-                                            stream: transactionsRepository
-                                                .watchScheduledPayments(),
-                                            builder: (context, schedSnapshot) {
-                                              final scheduled =
-                                                  schedSnapshot.data ??
-                                                  const <ScheduledPayment>[];
-                                              final recent =
-                                                  _buildRecentEntries(
-                                                allTx,
-                                                scheduled,
-                                              );
-                                              return _RecentEntriesSection(
-                                                recent: recent,
-                                                onViewHistory: onViewHistory,
-                                                transactionsRepository:
-                                                    transactionsRepository,
-                                              );
-                                            },
-                                          );
-                                        },
-                                      ),
-                                      ],
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -452,62 +508,20 @@ class _FeaturedGoalCard extends StatelessWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value, required this.onTap});
-
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(HitoRadius.md),
-      child: Container(
-        padding: const EdgeInsets.all(HitoSpacing.md),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(HitoRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-            Text(
-              value,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Une transacciones reales y registros programados en una sola lista
 /// para "Registros recientes" — un programado ya aceptado nunca se
 /// muestra junto a la transacción que generó (sería la misma cosa
 /// vista dos veces), así que la transacción vinculada se descarta acá.
 class _HomeEntry {
   _HomeEntry.transaction(MoneyTransaction t)
-      : transaction = t,
-        scheduled = null,
-        date = t.date;
+    : transaction = t,
+      scheduled = null,
+      date = t.date;
 
   _HomeEntry.scheduled(ScheduledPayment p)
-      : transaction = null,
-        scheduled = p,
-        date = p.effectiveDate;
+    : transaction = null,
+      scheduled = p,
+      date = p.effectiveDate;
 
   final MoneyTransaction? transaction;
   final ScheduledPayment? scheduled;
@@ -568,7 +582,7 @@ class _RecentEntriesSection extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: Text(
-              'No has registrado ingresos ni gastos últimamente. ¡Empezá hoy!',
+              'No registraste ingresos ni gastos últimamente. Empezá hoy.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -604,7 +618,10 @@ class _RecentEntriesSection extends StatelessWidget {
 /// de la categoría, fecha/hora como supporting text, y el monto en
 /// verde (ingreso) o rojo (gasto) como tailing text.
 class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({required this.transaction, required this.transactionsRepository});
+  const _TransactionRow({
+    required this.transaction,
+    required this.transactionsRepository,
+  });
 
   final MoneyTransaction transaction;
   final TransactionsRepository transactionsRepository;
@@ -629,7 +646,10 @@ class _TransactionRow extends StatelessWidget {
       ),
       borderRadius: BorderRadius.circular(HitoRadius.md),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: HitoSpacing.md,
+          vertical: HitoSpacing.sm + 4,
+        ),
         decoration: BoxDecoration(
           color: cardColor(theme),
           borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -637,25 +657,24 @@ class _TransactionRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: isIncome
+            TransactionIconAvatar(
+              icon: category?.icon ?? Icons.category_outlined,
+              background: isIncome
                   ? theme.colorScheme.tertiaryContainer
                   : theme.colorScheme.secondaryContainer,
-              child: Icon(
-                category?.icon ?? Icons.category_outlined,
-                size: 18,
-                color: isIncome
-                    ? theme.colorScheme.onTertiaryContainer
-                    : theme.colorScheme.onSecondaryContainer,
-              ),
+              iconColor: isIncome
+                  ? theme.colorScheme.onTertiaryContainer
+                  : theme.colorScheme.onSecondaryContainer,
             ),
             const SizedBox(width: HitoSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(transaction.categoryLabel, style: theme.textTheme.bodyLarge),
+                  Text(
+                    transaction.categoryLabel,
+                    style: theme.textTheme.bodyLarge,
+                  ),
                   if (note.isNotEmpty)
                     Text(
                       note,
@@ -692,7 +711,10 @@ class _TransactionRow extends StatelessWidget {
 /// equivalente en Historial (ícono de check, label "Realizado" +
 /// horario), nunca la del ingreso/gasto normal.
 class _ScheduledRecentRow extends StatelessWidget {
-  const _ScheduledRecentRow({required this.payment, required this.transactionsRepository});
+  const _ScheduledRecentRow({
+    required this.payment,
+    required this.transactionsRepository,
+  });
 
   final ScheduledPayment payment;
   final TransactionsRepository transactionsRepository;
@@ -726,7 +748,11 @@ class _ScheduledRecentRow extends StatelessWidget {
             CircleAvatar(
               radius: 20,
               backgroundColor: recessedColor(theme),
-              child: Icon(Icons.check, size: 18, color: theme.colorScheme.onSurfaceVariant),
+              child: Icon(
+                Icons.check,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: HitoSpacing.sm),
             Expanded(
@@ -787,11 +813,15 @@ class _DuePaymentCardState extends State<_DuePaymentCard> {
     });
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     await Future.delayed(
-      reduceMotion ? const Duration(milliseconds: 500) : const Duration(milliseconds: 2400),
+      reduceMotion
+          ? HitoMotion.scheduledHoldConfirmReduced
+          : HitoMotion.scheduledHoldConfirm,
     );
     if (!mounted) return;
     try {
-      await widget.transactionsRepository.acceptScheduledPayment(widget.payment);
+      await widget.transactionsRepository.acceptScheduledPayment(
+        widget.payment,
+      );
       if (!mounted) return;
       showAppSnackBar(context, 'Registrado');
     } finally {
@@ -929,10 +959,13 @@ class _NotificationsBellState extends State<_NotificationsBell> {
           valueListenable: NotificationsReadState.instance.lastReadAt,
           builder: (context, lastReadAt, _) {
             final hasUnread = items.any(
-              (item) => lastReadAt == null || item.timestamp.isAfter(lastReadAt),
+              (item) =>
+                  lastReadAt == null || item.timestamp.isAfter(lastReadAt),
             );
             return IconButton(
-              tooltip: hasUnread ? 'Notificaciones (hay nuevas)' : 'Notificaciones',
+              tooltip: hasUnread
+                  ? 'Notificaciones (hay nuevas)'
+                  : 'Notificaciones',
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => NotificationsScreen(

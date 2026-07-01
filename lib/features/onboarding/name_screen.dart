@@ -71,7 +71,9 @@ class _NameScreenState extends State<NameScreen> {
                 ),
                 const SizedBox(height: HitoSpacing.xl),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: HitoSpacing.md,
+                  ),
                   decoration: BoxDecoration(
                     color: recessedColor(theme),
                     borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -90,7 +92,9 @@ class _NameScreenState extends State<NameScreen> {
                       filled: false,
                       border: InputBorder.none,
                       hintText: 'Tu nombre',
-                      contentPadding: EdgeInsets.symmetric(vertical: HitoSpacing.md),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: HitoSpacing.md,
+                      ),
                     ),
                   ),
                 ),
@@ -98,7 +102,9 @@ class _NameScreenState extends State<NameScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: name.isEmpty ? null : () => widget.onContinue(name),
+                    onPressed: name.isEmpty
+                        ? null
+                        : () => widget.onContinue(name),
                     child: const Text('Continuar'),
                   ),
                 ),

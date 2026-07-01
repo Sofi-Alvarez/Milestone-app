@@ -15,10 +15,13 @@ class ThousandsInputFormatter extends TextInputFormatter {
     final raw = newValue.text.replaceAll('.', '');
     final commaIndex = raw.indexOf(',');
     final hasComma = commaIndex != -1;
-    final intPart =
-        (hasComma ? raw.substring(0, commaIndex) : raw).replaceAll(RegExp(r'[^0-9]'), '');
-    final decPart =
-        hasComma ? raw.substring(commaIndex + 1).replaceAll(RegExp(r'[^0-9]'), '') : '';
+    final intPart = (hasComma ? raw.substring(0, commaIndex) : raw).replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+    final decPart = hasComma
+        ? raw.substring(commaIndex + 1).replaceAll(RegExp(r'[^0-9]'), '')
+        : '';
 
     final buffer = StringBuffer();
     for (var i = 0; i < intPart.length; i++) {

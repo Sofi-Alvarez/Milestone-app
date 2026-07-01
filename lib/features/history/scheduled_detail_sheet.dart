@@ -4,6 +4,7 @@ import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/card_strike_through.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -21,10 +22,8 @@ Future<void> openScheduledDetailSheet(
   required TransactionsRepository transactionsRepository,
   required ScheduledPayment payment,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showAppBottomSheet<void>(
+    context,
     builder: (context) => _ScheduledDetailSheet(
       transactionsRepository: transactionsRepository,
       payment: payment,
@@ -33,7 +32,10 @@ Future<void> openScheduledDetailSheet(
 }
 
 class _ScheduledDetailSheet extends StatefulWidget {
-  const _ScheduledDetailSheet({required this.transactionsRepository, required this.payment});
+  const _ScheduledDetailSheet({
+    required this.transactionsRepository,
+    required this.payment,
+  });
 
   final TransactionsRepository transactionsRepository;
   final ScheduledPayment payment;
@@ -56,8 +58,9 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
 
   late TransactionType _type = widget.payment.type;
   late TransactionCategory? _category = findCategory(widget.payment.categoryId);
-  late final _amountController =
-      TextEditingController(text: formatCurrency(widget.payment.amount).replaceAll('\$', ''));
+  late final _amountController = TextEditingController(
+    text: formatCurrency(widget.payment.amount).replaceAll('\$', ''),
+  );
   final _amountFocus = FocusNode();
   late DateTime _nextDueDate = widget.payment.nextDueDate;
 
@@ -150,11 +153,15 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
     });
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     await Future.delayed(
-      reduceMotion ? const Duration(milliseconds: 500) : const Duration(milliseconds: 2400),
+      reduceMotion
+          ? HitoMotion.scheduledHoldConfirmReduced
+          : HitoMotion.scheduledHoldConfirm,
     );
     if (!mounted) return;
     try {
-      await widget.transactionsRepository.acceptScheduledPayment(widget.payment);
+      await widget.transactionsRepository.acceptScheduledPayment(
+        widget.payment,
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (_) {
@@ -172,7 +179,9 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
       destructive: true,
     );
     if (!confirmed) return;
-    await widget.transactionsRepository.deleteScheduledPayment(widget.payment.id);
+    await widget.transactionsRepository.deleteScheduledPayment(
+      widget.payment.id,
+    );
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -184,13 +193,23 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
     final sign = _type == TransactionType.income ? '+' : '-';
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: cardColor(theme),
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
         ),
-        padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          HitoSpacing.lg,
+          HitoSpacing.sm,
+          HitoSpacing.lg,
+          HitoSpacing.lg,
+        ),
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(
@@ -230,12 +249,18 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                           ),
                           const SizedBox(width: HitoSpacing.sm),
                           Expanded(
-                            child: Text(payment.name, style: theme.textTheme.headlineMedium),
+                            child: Text(
+                              payment.name,
+                              style: theme.textTheme.headlineMedium,
+                            ),
                           ),
                           IconButton(
                             tooltip: 'Eliminar registro programado',
                             onPressed: _busy ? null : _delete,
-                            icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: theme.colorScheme.error,
+                            ),
                           ),
                         ],
                       ),
@@ -252,7 +277,9 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                       AnimatedBuilder(
                         animation: _amountFocus,
                         builder: (context, child) => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.sm),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: HitoSpacing.sm,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(HitoRadius.md),
                             border: Border.all(
@@ -277,7 +304,10 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                                 controller: _amountController,
                                 focusNode: _amountFocus,
                                 textAlign: TextAlign.left,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 inputFormatters: [ThousandsInputFormatter()],
                                 style: theme.textTheme.headlineMedium,
                                 decoration: const InputDecoration(
@@ -293,7 +323,9 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                             ),
                             IconButton(
                               tooltip: 'Editar monto',
-                              onPressed: _busy ? null : () => _amountFocus.requestFocus(),
+                              onPressed: _busy
+                                  ? null
+                                  : () => _amountFocus.requestFocus(),
                               icon: Icon(
                                 Icons.edit_outlined,
                                 size: 20,
@@ -326,7 +358,10 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                                   style: theme.textTheme.bodyMedium,
                                 ),
                               ),
-                              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                              Icon(
+                                Icons.chevron_right,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ],
                           ),
                         ),
@@ -348,18 +383,24 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      payment.isDue ? 'Vencido' : 'Próxima fecha',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: payment.isDue
-                                            ? theme.colorScheme.error
-                                            : theme.colorScheme.onSurfaceVariant,
-                                      ),
+                                      payment.isDue
+                                          ? 'Vencido'
+                                          : 'Próxima fecha',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: payment.isDue
+                                                ? theme.colorScheme.error
+                                                : theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                          ),
                                     ),
                                     Text(
                                       formatGoalDate(_nextDueDate),
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -393,34 +434,43 @@ class _ScheduledDetailSheetState extends State<_ScheduledDetailSheet> {
                       // no compite visualmente con "Aceptar ahora".
                       child: _accepted
                           ? FilledButton(
-                              onPressed: (_canSave && !_saving) ? _saveChanges : null,
+                              onPressed: (_canSave && !_saving)
+                                  ? _saveChanges
+                                  : null,
                               child: _saving
                                   ? const SizedBox(
                                       height: 18,
                                       width: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
                                     )
                                   : const Text('Guardar cambios'),
                             )
                           : OutlinedButton(
-                              onPressed: (_canSave && !_saving) ? _saveChanges : null,
+                              onPressed: (_canSave && !_saving)
+                                  ? _saveChanges
+                                  : null,
                               child: _saving
                                   ? const SizedBox(
                                       height: 18,
                                       width: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Text('Guardar cambios'),
                             ),
                     ),
                     if (!_accepted) ...[
-                    const SizedBox(width: HitoSpacing.sm),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _busy ? null : _accept,
-                        child: const Text('Aceptar ahora'),
+                      const SizedBox(width: HitoSpacing.sm),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _busy ? null : _accept,
+                          child: const Text('Aceptar ahora'),
+                        ),
                       ),
-                    ),
                     ],
                   ],
                 ),

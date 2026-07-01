@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../widgets/app_bottom_sheet.dart';
 
 enum HistoryTypeFilter { all, income, expense, scheduled }
 
 extension HistoryTypeFilterLabel on HistoryTypeFilter {
   String get label => switch (this) {
-        HistoryTypeFilter.all => 'Todos',
-        HistoryTypeFilter.income => 'Ingresos',
-        HistoryTypeFilter.expense => 'Gastos',
-        HistoryTypeFilter.scheduled => 'Programados',
-      };
+    HistoryTypeFilter.all => 'Todos',
+    HistoryTypeFilter.income => 'Ingresos',
+    HistoryTypeFilter.expense => 'Gastos',
+    HistoryTypeFilter.scheduled => 'Programados',
+  };
 }
 
 enum HistoryPeriod { today, yesterday, last7Days, last30Days, custom }
 
 extension HistoryPeriodLabel on HistoryPeriod {
   String get label => switch (this) {
-        HistoryPeriod.today => 'Hoy',
-        HistoryPeriod.yesterday => 'Ayer',
-        HistoryPeriod.last7Days => 'Última semana',
-        HistoryPeriod.last30Days => 'Último mes',
-        HistoryPeriod.custom => 'Periodo específico',
-      };
+    HistoryPeriod.today => 'Hoy',
+    HistoryPeriod.yesterday => 'Ayer',
+    HistoryPeriod.last7Days => 'Última semana',
+    HistoryPeriod.last30Days => 'Último mes',
+    HistoryPeriod.custom => 'Periodo específico',
+  };
 }
 
 class HistoryFilters {
@@ -38,7 +39,8 @@ class HistoryFilters {
   final DateTime? customStart;
   final DateTime? customEnd;
 
-  int get activeCount => (type != HistoryTypeFilter.all ? 1 : 0) + (period != null ? 1 : 0);
+  int get activeCount =>
+      (type != HistoryTypeFilter.all ? 1 : 0) + (period != null ? 1 : 0);
 
   bool get isActive => activeCount > 0;
 
@@ -71,16 +73,18 @@ Future<HistoryFilters?> showHistoryFilterSheet(
   required HistoryFilters current,
   bool showTypeFilter = true,
 }) {
-  return showModalBottomSheet<HistoryFilters>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => _HistoryFilterSheet(initial: current, showTypeFilter: showTypeFilter),
+  return showAppBottomSheet<HistoryFilters>(
+    context,
+    builder: (context) =>
+        _HistoryFilterSheet(initial: current, showTypeFilter: showTypeFilter),
   );
 }
 
 class _HistoryFilterSheet extends StatefulWidget {
-  const _HistoryFilterSheet({required this.initial, required this.showTypeFilter});
+  const _HistoryFilterSheet({
+    required this.initial,
+    required this.showTypeFilter,
+  });
 
   final HistoryFilters initial;
   final bool showTypeFilter;
@@ -127,7 +131,9 @@ class _HistoryFilterSheetState extends State<_HistoryFilterSheet> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _customEnd ?? DateTime.now(),
-      firstDate: _customStart ?? DateTime.now().subtract(const Duration(days: 365 * 5)),
+      firstDate:
+          _customStart ??
+          DateTime.now().subtract(const Duration(days: 365 * 5)),
       lastDate: DateTime.now(),
     );
     if (picked != null) setState(() => _customEnd = picked);
@@ -136,14 +142,24 @@ class _HistoryFilterSheetState extends State<_HistoryFilterSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canShow = _period != HistoryPeriod.custom || (_customStart != null && _customEnd != null);
+    final canShow =
+        _period != HistoryPeriod.custom ||
+        (_customStart != null && _customEnd != null);
 
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(32),
+          topRight: Radius.circular(32),
+        ),
       ),
-      padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        HitoSpacing.lg,
+        HitoSpacing.sm,
+        HitoSpacing.lg,
+        HitoSpacing.lg,
+      ),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -191,7 +207,9 @@ class _HistoryFilterSheetState extends State<_HistoryFilterSheet> {
                     ChoiceChip(
                       label: Text(period.label),
                       selected: _period == period,
-                      onSelected: (_) => setState(() => _period = _period == period ? null : period),
+                      onSelected: (_) => setState(
+                        () => _period = _period == period ? null : period,
+                      ),
                     ),
                 ],
               ),
@@ -199,9 +217,21 @@ class _HistoryFilterSheetState extends State<_HistoryFilterSheet> {
                 const SizedBox(height: HitoSpacing.md),
                 Row(
                   children: [
-                    Expanded(child: _DateField(label: 'Desde', date: _customStart, onTap: _pickStart)),
+                    Expanded(
+                      child: _DateField(
+                        label: 'Desde',
+                        date: _customStart,
+                        onTap: _pickStart,
+                      ),
+                    ),
                     const SizedBox(width: HitoSpacing.sm),
-                    Expanded(child: _DateField(label: 'Hasta', date: _customEnd, onTap: _pickEnd)),
+                    Expanded(
+                      child: _DateField(
+                        label: 'Hasta',
+                        date: _customEnd,
+                        onTap: _pickEnd,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -209,20 +239,25 @@ class _HistoryFilterSheetState extends State<_HistoryFilterSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(onPressed: _clear, child: const Text('Limpiar')),
+                    child: OutlinedButton(
+                      onPressed: _clear,
+                      child: const Text('Limpiar'),
+                    ),
                   ),
                   const SizedBox(width: HitoSpacing.sm),
                   Expanded(
                     child: FilledButton(
                       onPressed: canShow
                           ? () => Navigator.of(context).pop(
-                                HistoryFilters(
-                                  type: widget.showTypeFilter ? _type : HistoryTypeFilter.all,
-                                  period: _period,
-                                  customStart: _customStart,
-                                  customEnd: _customEnd,
-                                ),
-                              )
+                              HistoryFilters(
+                                type: widget.showTypeFilter
+                                    ? _type
+                                    : HistoryTypeFilter.all,
+                                period: _period,
+                                customStart: _customStart,
+                                customEnd: _customEnd,
+                              ),
+                            )
                           : null,
                       child: const Text('Mostrar resultados'),
                     ),
@@ -237,16 +272,20 @@ class _HistoryFilterSheetState extends State<_HistoryFilterSheet> {
   }
 
   Widget _sectionLabel(ThemeData theme, String text) => Text(
-        text,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
-        ),
-      );
+    text,
+    style: theme.textTheme.labelLarge?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w700,
+    ),
+  );
 }
 
 class _DateField extends StatelessWidget {
-  const _DateField({required this.label, required this.date, required this.onTap});
+  const _DateField({
+    required this.label,
+    required this.date,
+    required this.onTap,
+  });
 
   final String label;
   final DateTime? date;
@@ -262,7 +301,9 @@ class _DateField extends StatelessWidget {
         padding: const EdgeInsets.all(HitoSpacing.md),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
-          border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.4)),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.4),
+          ),
           borderRadius: BorderRadius.circular(HitoRadius.md),
         ),
         child: Column(
@@ -270,10 +311,14 @@ class _DateField extends StatelessWidget {
           children: [
             Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             Text(
-              date == null ? 'Elegir fecha' : '${date!.day}/${date!.month}/${date!.year}',
+              date == null
+                  ? 'Elegir fecha'
+                  : '${date!.day}/${date!.month}/${date!.year}',
               style: theme.textTheme.bodyLarge,
             ),
           ],

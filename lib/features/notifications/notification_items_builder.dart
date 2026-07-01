@@ -24,7 +24,8 @@ class NotificationItemsBuilder extends StatelessWidget {
   final GoalsRepository goalsRepository;
   final TransactionsRepository transactionsRepository;
   final UserSettingsRepository settingsRepository;
-  final Widget Function(BuildContext context, List<NotificationItem> items) builder;
+  final Widget Function(BuildContext context, List<NotificationItem> items)
+  builder;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,11 @@ class NotificationItemsBuilder extends StatelessWidget {
           stream: goalsRepository.watchGoals(),
           builder: (context, goalsSnapshot) {
             final achieved = (goalsSnapshot.data ?? const <Goal>[])
-                .where((g) => g.lifecycle == GoalLifecycle.achieved && g.achievedAt != null)
+                .where(
+                  (g) =>
+                      g.lifecycle == GoalLifecycle.achieved &&
+                      g.achievedAt != null,
+                )
                 .toList();
 
             return StreamBuilder<List<ScheduledPayment>>(
@@ -51,14 +56,20 @@ class NotificationItemsBuilder extends StatelessWidget {
                     final balance = balanceSnapshot.data;
 
                     return StreamBuilder<List<MoneyTransaction>>(
-                      stream: transactionsRepository.watchTransactions(limit: 200),
+                      stream: transactionsRepository.watchTransactions(
+                        limit: 200,
+                      ),
                       builder: (context, txSnapshot) {
                         final transactions = txSnapshot.data;
                         final items = <NotificationItem>[
                           if (settings.notifySavingsGoals)
-                            for (final goal in achieved) NotificationItem.achievedGoal(goal),
-                          for (final payment in due) NotificationItem.duePayment(payment),
-                          if (settings.notifySpendingAlerts && balance != null && balance < 0)
+                            for (final goal in achieved)
+                              NotificationItem.achievedGoal(goal),
+                          for (final payment in due)
+                            NotificationItem.duePayment(payment),
+                          if (settings.notifySpendingAlerts &&
+                              balance != null &&
+                              balance < 0)
                             NotificationItem.lowBalance(),
                           if (transactions != null)
                             ..._deriveFromTransactions(transactions, settings),
@@ -97,7 +108,9 @@ class NotificationItemsBuilder extends StatelessWidget {
       final expense = todayTransactions
           .where((t) => t.type == TransactionType.expense)
           .fold<double>(0, (sum, t) => sum + t.amount);
-      items.add(NotificationItem.dailySummary(income: income, expense: expense));
+      items.add(
+        NotificationItem.dailySummary(income: income, expense: expense),
+      );
     }
 
     if (settings.notifyRegisterReminder) {

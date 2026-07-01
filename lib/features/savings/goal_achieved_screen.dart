@@ -38,8 +38,9 @@ class GoalAchievedScreen extends StatefulWidget {
 }
 
 class _GoalAchievedScreenState extends State<GoalAchievedScreen> {
-  late final _confettiController =
-      ConfettiController(duration: const Duration(seconds: 4));
+  late final _confettiController = ConfettiController(
+    duration: const Duration(seconds: 4),
+  );
 
   bool _playedConfetti = false;
 
@@ -108,8 +109,9 @@ class _GoalAchievedScreenState extends State<GoalAchievedScreen> {
                   ),
                   const SizedBox(height: HitoSpacing.sm),
                   TextButton(
-                    onPressed: () =>
-                        Navigator.of(context).popUntil((route) => route.isFirst),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).popUntil((route) => route.isFirst),
                     child: const Text('Volver a Ahorro'),
                   ),
                 ],

@@ -131,8 +131,7 @@ class Goal {
       title: data['title'] as String? ?? 'Sin título',
       targetAmount: (data['targetAmount'] as num?)?.toDouble() ?? 0,
       savedAmount: (data['savedAmount'] as num?)?.toDouble() ?? 0,
-      createdAt:
-          (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       targetDate: (data['targetDate'] as Timestamp?)?.toDate(),
       lifecycle: GoalLifecycle.values.firstWhere(
         (e) => e.name == data['lifecycle'],

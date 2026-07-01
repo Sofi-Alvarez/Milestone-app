@@ -130,10 +130,7 @@ class GoalProgressRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: HitoSpacing.sm),
-        Text(
-          '%${(progress * 100).round()}',
-          style: theme.textTheme.labelLarge,
-        ),
+        Text('%${(progress * 100).round()}', style: theme.textTheme.labelLarge),
       ],
     );
   }

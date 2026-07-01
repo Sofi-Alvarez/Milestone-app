@@ -13,6 +13,9 @@ Future<bool> confirmDialog(
   final theme = Theme.of(context);
   final confirmed = await showDialog<bool>(
     context: context,
+    // Las confirmaciones destructivas no se cierran tocando afuera —
+    // el usuario tiene que elegir explícitamente Cancelar o confirmar.
+    barrierDismissible: !destructive,
     builder: (context) => AlertDialog(
       title: Text(title),
       content: Text(body),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Entrada con fade + leve deslizamiento hacia arriba, escalonada por
 /// [index] — para listas cortas (hasta ~10 ítems) donde algo nuevo
 /// aparece o desaparece, como "Registros recientes" o "Registros
@@ -19,7 +21,7 @@ class _StaggeredFadeInState extends State<StaggeredFadeIn>
     with SingleTickerProviderStateMixin {
   late final _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 220),
+    duration: HitoMotion.staggerFadeIn,
   );
   bool _started = false;
 
@@ -34,7 +36,7 @@ class _StaggeredFadeInState extends State<StaggeredFadeIn>
     if (MediaQuery.of(context).disableAnimations) {
       _controller.value = 1;
     } else {
-      Future.delayed(Duration(milliseconds: widget.index * 40), () {
+      Future.delayed(HitoMotion.staggerItemDelay * widget.index, () {
         if (mounted) _controller.forward();
       });
     }

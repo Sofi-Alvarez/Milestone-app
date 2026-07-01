@@ -9,7 +9,7 @@ import 'movement.dart';
 /// lib/features/auth/auth_service.dart.
 class GoalsRepository {
   GoalsRepository(this.uid, {FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final String uid;
   final FirebaseFirestore _firestore;
@@ -21,9 +21,10 @@ class GoalsRepository {
       _firestore.collection('users').doc(uid).collection('movements');
 
   Stream<List<Goal>> watchGoals() {
-    return _goalsRef.orderBy('createdAt', descending: true).snapshots().map(
-          (snapshot) => snapshot.docs.map(Goal.fromFirestore).toList(),
-        );
+    return _goalsRef
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(Goal.fromFirestore).toList());
   }
 
   /// Stream de una meta puntual — emite `null` si fue eliminada.
@@ -86,9 +87,9 @@ class GoalsRepository {
 
   /// Reinicia la meta: vuelve a activa y el ahorro a cero.
   Future<void> restartGoal(String goalId) => _goalsRef.doc(goalId).update({
-        'lifecycle': GoalLifecycle.active.name,
-        'savedAmount': 0,
-      });
+    'lifecycle': GoalLifecycle.active.name,
+    'savedAmount': 0,
+  });
 
   /// Suma [amount] al ahorro de la meta. Si llega o supera el objetivo,
   /// la marca como lograda automáticamente. Devuelve `true` si esta
@@ -102,7 +103,8 @@ class GoalsRepository {
       final goal = Goal.fromFirestore(snapshot);
       final newSaved = goal.savedAmount + amount;
       final justAchieved =
-          goal.lifecycle != GoalLifecycle.achieved && newSaved >= goal.targetAmount;
+          goal.lifecycle != GoalLifecycle.achieved &&
+          newSaved >= goal.targetAmount;
       transaction.update(ref, {
         'savedAmount': newSaved,
         'lastEntryAmount': amount,
@@ -148,7 +150,10 @@ class GoalsRepository {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     return _movementsRef
-        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
+        .where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+        )
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map(Movement.fromFirestore).toList());

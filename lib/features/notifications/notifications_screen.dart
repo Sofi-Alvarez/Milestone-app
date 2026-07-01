@@ -38,7 +38,8 @@ class NotificationsScreen extends StatelessWidget {
             valueListenable: NotificationsReadState.instance.lastReadAt,
             builder: (context, lastReadAt, _) {
               final hasUnread = items.any(
-                (item) => lastReadAt == null || item.timestamp.isAfter(lastReadAt),
+                (item) =>
+                    lastReadAt == null || item.timestamp.isAfter(lastReadAt),
               );
               return Column(
                 children: [
@@ -53,7 +54,8 @@ class NotificationsScreen extends StatelessWidget {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: hasUnread
-                            ? () => NotificationsReadState.instance.markAllRead()
+                            ? () =>
+                                  NotificationsReadState.instance.markAllRead()
                             : null,
                         child: const Text('Marcar todo como leído'),
                       ),
@@ -128,44 +130,44 @@ class _NotificationTile extends StatelessWidget {
 
     final (icon, iconColor, title, body) = switch (item.kind) {
       NotificationKind.achievedGoal => (
-          Icons.check,
-          isDark ? HitoColors.successDark : HitoColors.successLight,
-          'Ahorro alcanzado',
-          '¡Felicidades! Has alcanzado tu meta de ahorro para '
-              '"${item.goal!.title}". Has acumulado ${formatCurrency(item.goal!.targetAmount)}.',
-        ),
+        Icons.check,
+        isDark ? HitoColors.successDark : HitoColors.successLight,
+        'Ahorro alcanzado',
+        '¡Felicidades! Has alcanzado tu meta de ahorro para '
+            '"${item.goal!.title}". Has acumulado ${formatCurrency(item.goal!.targetAmount)}.',
+      ),
       NotificationKind.duePayment => (
-          Icons.schedule_outlined,
-          theme.colorScheme.primary,
-          'Registro pendiente',
-          'Tenés "${item.payment!.name}" para registrar: '
-              '${formatCurrency(item.payment!.amount)} en ${item.payment!.categoryLabel}. '
-              'Aceptalo o reprogramalo desde el Home.',
-        ),
+        Icons.schedule_outlined,
+        theme.colorScheme.primary,
+        'Registro pendiente',
+        'Tenés "${item.payment!.name}" para registrar: '
+            '${formatCurrency(item.payment!.amount)} en ${item.payment!.categoryLabel}. '
+            'Aceptalo o reprogramalo desde el Home.',
+      ),
       NotificationKind.lowBalance => (
-          Icons.warning_amber_outlined,
-          theme.colorScheme.error,
-          'Saldo por debajo del mínimo',
-          'Tu dinero disponible es negativo. Registrá tus ingresos o '
-              'revisá tus gastos recientes.',
-        ),
+        Icons.warning_amber_outlined,
+        theme.colorScheme.error,
+        'Dinero disponible por debajo del mínimo',
+        'Tu dinero disponible es negativo. Registrá tus ingresos o '
+            'revisá tus gastos recientes.',
+      ),
       NotificationKind.registerReminder => (
-          Icons.edit_note_outlined,
-          theme.colorScheme.secondary,
-          'Recordatorio para registrar',
-          item.daysSinceLastRegister! < 0
-              ? 'Todavía no registraste ningún ingreso o gasto. ¡Empezá hoy!'
-              : item.daysSinceLastRegister == 1
-                  ? 'Hace 1 día que no registrás ningún movimiento.'
-                  : 'Hace ${item.daysSinceLastRegister} días que no registrás ningún movimiento.',
-        ),
+        Icons.edit_note_outlined,
+        theme.colorScheme.secondary,
+        'Recordatorio para registrar',
+        item.daysSinceLastRegister! < 0
+            ? 'Todavía no registraste ningún ingreso o gasto. Empezá hoy.'
+            : item.daysSinceLastRegister == 1
+            ? 'Hace 1 día que no registrás ningún movimiento.'
+            : 'Hace ${item.daysSinceLastRegister} días que no registrás ningún movimiento.',
+      ),
       NotificationKind.dailySummary => (
-          Icons.summarize_outlined,
-          theme.colorScheme.tertiary,
-          'Resumen del día',
-          'Hoy registraste ${formatCurrency(item.todayIncome!)} en ingresos y '
-              '${formatCurrency(item.todayExpense!)} en gastos.',
-        ),
+        Icons.summarize_outlined,
+        theme.colorScheme.tertiary,
+        'Resumen del día',
+        'Hoy registraste ${formatCurrency(item.todayIncome!)} en ingresos y '
+            '${formatCurrency(item.todayExpense!)} en gastos.',
+      ),
     };
 
     return Padding(

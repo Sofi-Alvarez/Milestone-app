@@ -8,7 +8,7 @@ import 'budget.dart';
 /// importar desde dónde se intente crear uno nuevo.
 class BudgetsRepository {
   BudgetsRepository(this.uid, {FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final String uid;
   final FirebaseFirestore _firestore;
@@ -17,9 +17,10 @@ class BudgetsRepository {
       _firestore.collection('users').doc(uid).collection('budgets');
 
   Stream<List<Budget>> watchBudgets() {
-    return _ref.orderBy('createdAt', descending: true).snapshots().map(
-          (snapshot) => snapshot.docs.map(Budget.fromFirestore).toList(),
-        );
+    return _ref
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(Budget.fromFirestore).toList());
   }
 
   /// El presupuesto vigente ahora mismo (activo o pausado, no vencido

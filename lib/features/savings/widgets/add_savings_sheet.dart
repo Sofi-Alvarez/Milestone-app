@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/goals_repository.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/app_bottom_sheet.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../goal_achieved_screen.dart';
 
@@ -10,10 +11,8 @@ import '../goal_achieved_screen.dart';
 /// de [showModalBottomSheet]), y se puede cerrar deslizando hacia abajo
 /// o confirmando con el botón de enviar.
 Future<double?> showAddSavingsSheet(BuildContext context) {
-  return showModalBottomSheet<double>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showAppBottomSheet<double>(
+    context,
     builder: (context) => const _AddSavingsSheet(),
   );
 }
@@ -43,7 +42,11 @@ Future<void> addSavingsAndNotify(
   if (!context.mounted) return;
 
   if (justAchieved) {
-    openGoalAchievedScreen(context, repository: repository, goalTitle: goalTitle);
+    openGoalAchievedScreen(
+      context,
+      repository: repository,
+      goalTitle: goalTitle,
+    );
     return;
   }
 
@@ -215,7 +218,9 @@ class _KeypadRow extends StatelessWidget {
     return Row(
       children: [
         for (final label in labels) ...[
-          Expanded(child: _KeypadButton(label: label, onTap: () => onKeyTap(label))),
+          Expanded(
+            child: _KeypadButton(label: label, onTap: () => onKeyTap(label)),
+          ),
           const SizedBox(width: HitoSpacing.sm),
         ],
         Expanded(child: trailing),

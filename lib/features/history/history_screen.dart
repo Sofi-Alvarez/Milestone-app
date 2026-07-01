@@ -4,6 +4,7 @@ import '../../data/transaction.dart';
 import '../../data/transaction_category.dart';
 import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/skeleton.dart';
 import 'estadisticas_view.dart';
 import 'registro_view.dart';
 import 'widgets/history_filter_sheet.dart';
@@ -49,12 +50,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: StreamBuilder<List<MoneyTransaction>>(
         stream: widget.transactionsRepository.watchTransactions(limit: 500),
         builder: (context, txSnapshot) {
+          if (txSnapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.all(HitoSpacing.md),
+              child: SkeletonListCardGroup(count: 5),
+            );
+          }
           final transactions = txSnapshot.data ?? const <MoneyTransaction>[];
 
           return StreamBuilder<List<ScheduledPayment>>(
             stream: widget.transactionsRepository.watchScheduledPayments(),
             builder: (context, scheduledSnapshot) {
-              final scheduled = scheduledSnapshot.data ?? const <ScheduledPayment>[];
+              final scheduled =
+                  scheduledSnapshot.data ?? const <ScheduledPayment>[];
 
               final totalIncome = transactions
                   .where((t) => t.type == TransactionType.income)
@@ -91,7 +99,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: _view == _HistoryView.registro
                         ? RegistroView(
                             key: ValueKey(_registroFilters),
-                            transactionsRepository: widget.transactionsRepository,
+                            transactionsRepository:
+                                widget.transactionsRepository,
                             transactions: transactions,
                             scheduled: scheduled,
                             initialFilters: _registroFilters,
@@ -118,4 +127,3 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 }
-
