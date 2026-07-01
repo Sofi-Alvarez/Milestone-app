@@ -9,14 +9,27 @@ import '../../theme/app_theme.dart';
 /// nombre) y avanza sola cuando termina.
 ///
 /// La secuencia calca el prototipo de Figma (3000ms totales, ver
-/// `HitoMotion.splashLockupAnimation`): primero entra el conjunto
-/// círculo+texto con un fade + scale + settle de posición corto (los
-/// primeros ~900ms), y por separado el cerdito de adentro del círculo
-/// hace su propia entrada más elaborada — spin + scale con rebote —
-/// que arranca un poco después y tarda casi toda la animación en
-/// asentarse. El wordmark usa Monomakh (fuente custom, ver
-/// pubspec.yaml) — es la única excepción a Manrope, reservada al
-/// logotipo de marca, no a la UI.
+/// `HitoMotion.splashLockupAnimation`), con dos grupos de keyframes
+/// exportados tal cual:
+///
+/// **Lockup (círculo + cerdito + "milestone" juntos)** — retraso 918ms:
+/// - Posición: desde +20px (abajo), 1000ms, cubic-bezier(0.3, -1.2, 0.45, 1)
+///   (el y1 negativo es un rebote — se pasa de largo antes de asentar)
+/// - Escala: 60% → 100%, 780ms, cubic-bezier(0.15, 0.52, 0.5, 1)
+/// - Opacidad: 0% → 100%, 400ms, cubic-bezier(0.09, 0.55, 0.5, 1)
+///
+/// **Cerdito solo (adentro del círculo, ya visible)** — retraso y
+/// duración acortados respecto al export de Figma (que tenía 1922ms de
+/// retraso y 1000ms de movimiento — se sentía lento). Misma forma de
+/// curva, más ágil: retraso 1300ms, movimiento 650ms, opacidad 250ms.
+/// - Posición X: desde +30px (derecha), cubic-bezier(0.24, 0.08, 0.5, 1)
+/// - Posición Y: desde +30px (abajo), cubic-bezier(0.05, 0.4, 0.5, 1)
+/// - Escala: 0% → 100%, cubic-bezier(0.05, 0.4, 0.5, 1)
+/// - Rotación: 60° → 0° (antihorario), cubic-bezier(0.05, 0.4, 0.5, 1)
+/// - Opacidad: 0% → 100%, cubic-bezier(0.5, 0, 0.5, 1)
+///
+/// El wordmark usa Monomakh (fuente custom, ver pubspec.yaml) — es la
+/// única excepción a Manrope, reservada al logotipo de marca, no a la UI.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({
     super.key,
@@ -33,6 +46,23 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
+// Timing, en ms sobre los 3000ms totales del controller — valores
+// exactos exportados de Figma.
+const _totalMs = 3000;
+
+const _lockupDelayMs = 918;
+const _lockupOffsetDurationMs = 1000;
+const _lockupScaleDurationMs = 780;
+const _lockupOpacityDurationMs = 400;
+
+// Retraso/duración acortados respecto al export original de Figma
+// (918/1000ms) — con los valores literales el cerdito tardaba
+// demasiado en aparecer y el movimiento se sentía lento. Mantiene la
+// forma de las curvas, solo más rápido.
+const _pigDelayMs = 1300;
+const _pigMoveDurationMs = 650;
+const _pigOpacityDurationMs = 250;
+
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final _controller = AnimationController(
@@ -40,34 +70,79 @@ class _SplashScreenState extends State<SplashScreen>
     duration: HitoMotion.splashLockupAnimation,
   );
 
-  // Lockup completo (círculo + nombre) — entrada corta, primeros ~900ms.
-  late final _lockupOpacity = CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
-  );
-  late final _lockupOffset =
-      Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-        CurvedAnimation(
-          parent: _controller,
-          curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
-        ),
-      );
-  late final _lockupScale = Tween<double>(begin: 0.85, end: 1.0).animate(
+  // Lockup completo (círculo + cerdito + nombre) — retraso 918ms, cada
+  // propiedad con su propia duración/curva (ver doc-comment de la clase).
+  late final _lockupOffsetY = Tween<double>(begin: 20, end: 0).animate(
     CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
+      curve: const Interval(
+        _lockupDelayMs / _totalMs,
+        (_lockupDelayMs + _lockupOffsetDurationMs) / _totalMs,
+        curve: Cubic(0.3, -1.2, 0.45, 1),
+      ),
+    ),
+  );
+  late final _lockupScale = Tween<double>(begin: 0.6, end: 1.0).animate(
+    CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(
+        _lockupDelayMs / _totalMs,
+        (_lockupDelayMs + _lockupScaleDurationMs) / _totalMs,
+        curve: Cubic(0.15, 0.52, 0.5, 1),
+      ),
+    ),
+  );
+  late final _lockupOpacity = Tween<double>(begin: 0, end: 1).animate(
+    CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(
+        _lockupDelayMs / _totalMs,
+        (_lockupDelayMs + _lockupOpacityDurationMs) / _totalMs,
+        curve: Cubic(0.09, 0.55, 0.5, 1),
+      ),
     ),
   );
 
-  // Cerdito adentro del círculo — entra después, con spin + rebote,
-  // y tarda casi toda la animación en asentarse.
-  late final _pigCurve = CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0.1, 1.0, curve: Curves.easeOutBack),
+  // Cerdito adentro del círculo — 5 tracks independientes, calcados de
+  // los keyframes de Figma (ver doc-comment de la clase).
+  static const _pigMoveInterval = Interval(
+    _pigDelayMs / _totalMs,
+    (_pigDelayMs + _pigMoveDurationMs) / _totalMs,
+    curve: Cubic(0.05, 0.4, 0.5, 1),
   );
-  late final _pigOpacity = CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0.1, 0.45, curve: Curves.easeOut),
+
+  late final _pigOffsetX = Tween<double>(begin: 30, end: 0).animate(
+    CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(
+        _pigDelayMs / _totalMs,
+        (_pigDelayMs + _pigMoveDurationMs) / _totalMs,
+        curve: Cubic(0.24, 0.08, 0.5, 1),
+      ),
+    ),
+  );
+  late final _pigOffsetY = Tween<double>(
+    begin: 30,
+    end: 0,
+  ).animate(CurvedAnimation(parent: _controller, curve: _pigMoveInterval));
+  late final _pigScale = Tween<double>(
+    begin: 0,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _controller, curve: _pigMoveInterval));
+  // 60° → 0°, sentido antihorario.
+  late final _pigRotation = Tween<double>(
+    begin: pi / 3,
+    end: 0,
+  ).animate(CurvedAnimation(parent: _controller, curve: _pigMoveInterval));
+  late final _pigOpacity = Tween<double>(begin: 0, end: 1).animate(
+    CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(
+        _pigDelayMs / _totalMs,
+        (_pigDelayMs + _pigOpacityDurationMs) / _totalMs,
+        curve: Cubic(0.5, 0, 0.5, 1),
+      ),
+    ),
   );
 
   bool _started = false;
@@ -104,32 +179,45 @@ class _SplashScreenState extends State<SplashScreen>
         children: [
           const Positioned.fill(child: _StarField()),
           Center(
-            child: FadeTransition(
-              opacity: _lockupOpacity,
-              child: SlideTransition(
-                position: _lockupOffset,
-                child: ScaleTransition(
-                  scale: _lockupScale,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _AnimatedPigLogo(
-                        opacity: _pigOpacity,
-                        curve: _pigCurve,
-                        diameter: 64,
-                      ),
-                      const SizedBox(height: HitoSpacing.md),
-                      const Text(
-                        'milestone',
-                        style: TextStyle(
-                          fontFamily: 'Monomakh',
-                          fontSize: 32,
-                          color: HitoColors.splashForeground,
-                        ),
-                      ),
-                    ],
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                _lockupOffsetY,
+                _lockupScale,
+                _lockupOpacity,
+              ]),
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _lockupOpacity.value,
+                  child: Transform.translate(
+                    offset: Offset(0, _lockupOffsetY.value),
+                    child: Transform.scale(
+                      scale: _lockupScale.value,
+                      child: child,
+                    ),
                   ),
-                ),
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _AnimatedPigLogo(
+                    offsetX: _pigOffsetX,
+                    offsetY: _pigOffsetY,
+                    scale: _pigScale,
+                    rotation: _pigRotation,
+                    opacity: _pigOpacity,
+                    diameter: 64,
+                  ),
+                  const SizedBox(height: HitoSpacing.md),
+                  const Text(
+                    'milestone',
+                    style: TextStyle(
+                      fontFamily: 'Monomakh',
+                      fontSize: 32,
+                      color: HitoColors.splashForeground,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -140,20 +228,22 @@ class _SplashScreenState extends State<SplashScreen>
 }
 
 /// Círculo de fondo estático (entra junto con el resto del lockup) con
-/// el cerdito adentro animado por separado: aparece con scale 0.4→1
-/// y un pequeño giro que se pasa de largo y vuelve (por eso
-/// `Curves.easeOutBack` en vez de un ease simple) — el efecto de
-/// "rebote" que el prototipo de Figma resuelve con keyframes de
-/// escala + rotación superpuestos.
+/// el cerdito adentro animado por separado con sus 5 tracks propios.
 class _AnimatedPigLogo extends StatelessWidget {
   const _AnimatedPigLogo({
+    required this.offsetX,
+    required this.offsetY,
+    required this.scale,
+    required this.rotation,
     required this.opacity,
-    required this.curve,
     required this.diameter,
   });
 
+  final Animation<double> offsetX;
+  final Animation<double> offsetY;
+  final Animation<double> scale;
+  final Animation<double> rotation;
   final Animation<double> opacity;
-  final Animation<double> curve;
   final double diameter;
 
   @override
@@ -167,14 +257,22 @@ class _AnimatedPigLogo extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: AnimatedBuilder(
-        animation: curve,
+        animation: Listenable.merge([
+          offsetX,
+          offsetY,
+          scale,
+          rotation,
+          opacity,
+        ]),
         builder: (context, child) {
-          final t = curve.value;
           return Opacity(
             opacity: opacity.value,
-            child: Transform.rotate(
-              angle: (1 - t) * -0.35,
-              child: Transform.scale(scale: t, child: child),
+            child: Transform.translate(
+              offset: Offset(offsetX.value, offsetY.value),
+              child: Transform.rotate(
+                angle: rotation.value,
+                child: Transform.scale(scale: scale.value, child: child),
+              ),
             ),
           );
         },

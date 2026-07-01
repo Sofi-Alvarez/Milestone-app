@@ -127,7 +127,7 @@ class HitoMotion {
   static const splashLockupAnimation = Duration(milliseconds: 3000);
 
   /// Pausa después de que termina de entrar el lockup, antes de navegar.
-  static const splashHold = Duration(milliseconds: 500);
+  static const splashHold = Duration(milliseconds: 1500);
 }
 
 /// Sistema de superficies validado primero en Historial y ahora
