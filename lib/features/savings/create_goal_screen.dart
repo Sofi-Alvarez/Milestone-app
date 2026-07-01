@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../data/goals_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_snackbar.dart';
 import '../../widgets/logo_mark.dart';
+import '../home/models/home_models.dart';
 import 'goal_created_screen.dart';
 import 'widgets/goal_form_fields.dart';
 
@@ -37,12 +39,23 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
 
   DateTime? _targetDate;
 
+  // Validación on-blur: el error solo aparece después de que el
+  // usuario salió del campo, nunca antes de que interactúe con él.
+  bool _titleTouched = false;
+  bool _targetTouched = false;
+
   @override
   void initState() {
     super.initState();
     for (final controller in [_titleController, _targetController, _savedController]) {
       controller.addListener(() => setState(() {}));
     }
+    _titleFocus.addListener(() {
+      if (!_titleFocus.hasFocus) setState(() => _titleTouched = true);
+    });
+    _targetFocus.addListener(() {
+      if (!_targetFocus.hasFocus) setState(() => _targetTouched = true);
+    });
   }
 
   @override
@@ -56,11 +69,21 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     super.dispose();
   }
 
-  double _parseAmount(String text) =>
-      double.tryParse(text.trim().replaceAll(',', '.')) ?? 0;
+  double get _target => parseAmountInput(_targetController.text);
+  double get _saved => parseAmountInput(_savedController.text);
+  bool get _savedExceedsTarget => _target > 0 && _saved > _target;
 
-  double get _target => _parseAmount(_targetController.text);
-  double get _saved => _parseAmount(_savedController.text);
+  /// El monto ahorrado es el único campo que puede quedar en cero.
+  bool get _isFormComplete =>
+      _titleController.text.trim().isNotEmpty && _target > 0 && _targetDate != null;
+
+  String? get _titleError =>
+      _titleTouched && _titleController.text.trim().isEmpty
+          ? 'Ponele un nombre a tu meta'
+          : null;
+
+  String? get _targetError =>
+      _targetTouched && _target <= 0 ? 'El monto de meta tiene que ser mayor a \$0' : null;
 
   double get _suggestedDaily {
     if (_targetDate == null) return 0;
@@ -84,6 +107,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
   bool _saving = false;
 
   Future<void> _createGoal() async {
+    if (_savedExceedsTarget || !_isFormComplete) return;
     FocusScope.of(context).unfocus();
     final title =
         _titleController.text.trim().isEmpty ? 'Sin título' : _titleController.text.trim();
@@ -108,9 +132,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No pudimos crear la meta: $e')),
-      );
+      showAppSnackBar(context, 'No pudimos crear la meta: $e', isError: true);
     }
   }
 
@@ -121,9 +143,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: pageColor(theme),
         appBar: AppBar(
           leading: IconButton(
+            tooltip: 'Cerrar',
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.close),
           ),
@@ -157,6 +180,13 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   placeholder: 'Sin título',
                   keyboardType: TextInputType.text,
                 ),
+                if (_titleError != null) ...[
+                  const SizedBox(height: HitoSpacing.xs),
+                  Text(
+                    _titleError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ],
                 const SizedBox(height: HitoSpacing.md),
                 EditableGoalField(
                   label: 'Monto de meta',
@@ -166,6 +196,13 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   isAmount: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
+                if (_targetError != null) ...[
+                  const SizedBox(height: HitoSpacing.xs),
+                  Text(
+                    _targetError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ],
                 const SizedBox(height: HitoSpacing.md),
                 EditableGoalField(
                   label: 'Monto ahorrado',
@@ -175,6 +212,15 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   isAmount: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
+                if (_savedExceedsTarget) ...[
+                  const SizedBox(height: HitoSpacing.xs),
+                  Text(
+                    'El monto ahorrado no debe ser mayor al monto de meta.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: HitoSpacing.md),
                 GoalDateField(date: _targetDate, onTap: _pickDate),
                 const SizedBox(height: HitoSpacing.xl),
@@ -192,7 +238,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: _saving ? null : _createGoal,
+              onPressed: (_saving || _savedExceedsTarget || !_isFormComplete)
+                  ? null
+                  : _createGoal,
               child: _saving
                   ? const SizedBox(
                       height: 18,

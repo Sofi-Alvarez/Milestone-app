@@ -43,7 +43,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: pageColor(theme),
       appBar: AppBar(title: const Text('Metas'), centerTitle: false),
       body: StreamBuilder<List<Goal>>(
         stream: widget.goalsRepository.watchGoals(),
@@ -71,6 +71,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SegmentedButton<_GoalsTab>(
+                    showSelectedIcon: false,
                     segments: const [
                       ButtonSegment(value: _GoalsTab.active, label: Text('Activas')),
                       ButtonSegment(value: _GoalsTab.paused, label: Text('Pausadas')),
@@ -115,6 +116,7 @@ class _GoalsListScreenState extends State<GoalsListScreen> {
                 context,
                 repository: widget.goalsRepository,
                 goalId: goal.id,
+                goalTitle: goal.title,
               ),
               onViewDetail: () => openGoalDetail(
                 context,

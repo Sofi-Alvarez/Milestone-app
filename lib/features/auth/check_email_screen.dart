@@ -42,6 +42,7 @@ class _CheckEmailScreenState extends State<CheckEmailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
+                tooltip: 'Volver',
                 onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back),
               ),

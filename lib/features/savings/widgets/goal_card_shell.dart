@@ -37,9 +37,9 @@ class GoalCardShell extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.4)),
+        color: cardColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
+        boxShadow: cardShadow(),
       ),
       padding: const EdgeInsets.all(HitoSpacing.md),
       child: Column(
@@ -124,7 +124,7 @@ class GoalProgressRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              backgroundColor: theme.colorScheme.surface,
+              backgroundColor: pageColor(theme),
               color: theme.colorScheme.primary,
             ),
           ),

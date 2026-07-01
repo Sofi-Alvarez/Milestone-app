@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../data/goals_repository.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/app_snackbar.dart';
+import '../goal_achieved_screen.dart';
 
 /// Bottom sheet con teclado numérico custom para registrar un ahorro.
 /// Se desliza hacia arriba, el fondo se oscurece (comportamiento default
@@ -16,28 +18,35 @@ Future<double?> showAddSavingsSheet(BuildContext context) {
   );
 }
 
-/// Abre el sheet, persiste el monto en Firestore vía [repository], y si
-/// salió bien muestra el snackbar "Ahorro añadido" (3 segundos, con
-/// acción de deshacer que resta el monto recién agregado).
+/// Abre el sheet y persiste el monto en Firestore vía [repository].
+/// Si ese ahorro completó la meta, navega a la pantalla de celebración
+/// en vez de mostrar el snackbar — si no, muestra "Ahorro añadido"
+/// (3 segundos, con acción de deshacer que resta el monto recién agregado).
 Future<void> addSavingsAndNotify(
   BuildContext context, {
   required GoalsRepository repository,
   required String goalId,
+  required String goalTitle,
 }) async {
   final amount = await showAddSavingsSheet(context);
   if (amount == null || !context.mounted) return;
 
+  bool justAchieved;
   try {
-    await repository.addSavings(goalId, amount);
+    justAchieved = await repository.addSavings(goalId, amount);
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('No pudimos guardar el ahorro: $e')),
-    );
+    showAppSnackBar(context, 'No pudimos guardar el ahorro: $e', isError: true);
     return;
   }
 
   if (!context.mounted) return;
+
+  if (justAchieved) {
+    openGoalAchievedScreen(context, repository: repository, goalTitle: goalTitle);
+    return;
+  }
+
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: const Text('Ahorro añadido'),
@@ -88,7 +97,7 @@ class _AddSavingsSheetState extends State<_AddSavingsSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: cardColor(theme),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(HitoRadius.lg),
           topRight: Radius.circular(HitoRadius.lg),
@@ -134,7 +143,7 @@ class _AddSavingsSheetState extends State<_AddSavingsSheet> {
               trailing: _KeypadButton(
                 label: '-',
                 onTap: () {},
-                background: theme.colorScheme.surfaceContainerHighest,
+                background: recessedColor(theme),
               ),
             ),
             const SizedBox(height: HitoSpacing.sm),
@@ -144,7 +153,7 @@ class _AddSavingsSheetState extends State<_AddSavingsSheet> {
               trailing: _KeypadButton(
                 label: '␣',
                 onTap: () {},
-                background: theme.colorScheme.surfaceContainerHighest,
+                background: recessedColor(theme),
               ),
             ),
             const SizedBox(height: HitoSpacing.sm),
@@ -236,7 +245,7 @@ class _KeypadButton extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 1.4,
       child: Material(
-        color: background ?? theme.colorScheme.surfaceContainerHighest,
+        color: background ?? recessedColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
         child: InkWell(
           borderRadius: BorderRadius.circular(HitoRadius.md),

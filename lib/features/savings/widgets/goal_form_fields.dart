@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../widgets/thousands_input_formatter.dart';
 import '../../home/models/home_models.dart';
 
 String formatGoalDate(DateTime date) =>
@@ -178,8 +179,7 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
   String get _displayValue {
     if (widget.controller.text.isEmpty) return widget.placeholder;
     if (widget.isAmount) {
-      final parsed = double.tryParse(widget.controller.text.replaceAll(',', '.'));
-      if (parsed != null) return formatCurrency(parsed);
+      return formatCurrency(parseAmountInput(widget.controller.text));
     }
     return widget.controller.text;
   }
@@ -200,7 +200,7 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
             children: [
               Text(
                 widget.label,
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -211,9 +211,12 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
                   keyboardType: widget.keyboardType,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => widget.focusNode.unfocus(),
+                  inputFormatters:
+                      widget.isAmount ? [ThousandsInputFormatter()] : null,
                   style: theme.textTheme.headlineMedium,
                   decoration: const InputDecoration(
                     isDense: true,
+                    filled: false,
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -224,6 +227,7 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
           ),
         ),
         IconButton(
+          tooltip: 'Editar ${widget.label}',
           onPressed: () {
             setState(() => _editing = true);
             widget.focusNode.requestFocus();
@@ -255,7 +259,7 @@ class GoalDateField extends StatelessWidget {
               children: [
                 Text(
                   'Fecha límite',
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),

@@ -57,6 +57,7 @@ class _EmailScreenState extends State<EmailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
+                tooltip: 'Volver',
                 onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back),
               ),
@@ -88,6 +89,7 @@ class _EmailScreenState extends State<EmailScreen> {
                   suffixIcon: _emailController.text.isEmpty
                       ? null
                       : IconButton(
+                          tooltip: 'Borrar correo',
                           icon: const Icon(Icons.close),
                           onPressed: () => setState(_emailController.clear),
                         ),

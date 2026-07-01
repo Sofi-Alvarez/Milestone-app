@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../data/goal.dart';
 import '../../data/goals_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_snackbar.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/logo_mark.dart';
+import '../home/models/home_models.dart';
 import 'widgets/goal_form_fields.dart';
 
 void openEditGoalScreen(
@@ -48,12 +51,21 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   late DateTime? _targetDate = widget.goal.targetDate;
   bool _saving = false;
 
+  bool _titleTouched = false;
+  bool _targetTouched = false;
+
   @override
   void initState() {
     super.initState();
     for (final controller in [_titleController, _targetController, _savedController]) {
       controller.addListener(() => setState(() {}));
     }
+    _titleFocus.addListener(() {
+      if (!_titleFocus.hasFocus) setState(() => _titleTouched = true);
+    });
+    _targetFocus.addListener(() {
+      if (!_targetFocus.hasFocus) setState(() => _targetTouched = true);
+    });
   }
 
   @override
@@ -67,11 +79,8 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     super.dispose();
   }
 
-  double _parseAmount(String text) =>
-      double.tryParse(text.trim().replaceAll(',', '.')) ?? 0;
-
-  double get _target => _parseAmount(_targetController.text);
-  double get _saved => _parseAmount(_savedController.text);
+  double get _target => parseAmountInput(_targetController.text);
+  double get _saved => parseAmountInput(_savedController.text);
 
   double get _suggestedDaily {
     if (_targetDate == null) return 0;
@@ -81,6 +90,20 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     if (days <= 0) return remaining;
     return remaining / days;
   }
+
+  bool get _savedExceedsTarget => _target > 0 && _saved > _target;
+
+  /// El monto ahorrado es el único campo que puede quedar en cero.
+  bool get _isFormComplete =>
+      _titleController.text.trim().isNotEmpty && _target > 0 && _targetDate != null;
+
+  String? get _titleError =>
+      _titleTouched && _titleController.text.trim().isEmpty
+          ? 'Ponele un nombre a tu meta'
+          : null;
+
+  String? get _targetError =>
+      _targetTouched && _target <= 0 ? 'El monto de meta tiene que ser mayor a \$0' : null;
 
   bool get _hasChanges {
     return _titleController.text != widget.goal.title ||
@@ -100,6 +123,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   }
 
   Future<void> _saveChanges() async {
+    if (_savedExceedsTarget || !_isFormComplete) return;
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
@@ -114,15 +138,11 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cambios guardados')),
-      );
+      showAppSnackBar(context, 'Cambios guardados');
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No pudimos guardar: $e')),
-      );
+      showAppSnackBar(context, 'No pudimos guardar: $e', isError: true);
     }
   }
 
@@ -130,39 +150,29 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     required String title,
     required String body,
     required String confirmLabel,
+    bool destructive = false,
     required Future<void> Function() onConfirmed,
   }) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDialog(
+      context,
+      title: title,
+      body: body,
+      confirmLabel: confirmLabel,
+      destructive: destructive,
     );
-    if (confirmed == true) await onConfirmed();
+    if (confirmed) await onConfirmed();
   }
 
   void _delete() => _confirmAndRun(
         title: '¿Eliminar meta?',
         body: 'La meta se eliminará de forma permanente.',
         confirmLabel: 'Eliminar',
+        destructive: true,
         onConfirmed: () async {
           await widget.repository.deleteGoal(widget.goal.id);
           if (!mounted) return;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Meta eliminada')),
-          );
+          showAppSnackBar(context, 'Meta eliminada');
         },
       );
 
@@ -174,9 +184,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
           await widget.repository.pauseGoal(widget.goal.id);
           if (!mounted) return;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Meta pausada')),
-          );
+          showAppSnackBar(context, 'Meta pausada');
         },
       );
 
@@ -188,9 +196,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
           await widget.repository.restartGoal(widget.goal.id);
           if (!mounted) return;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Meta reiniciada')),
-          );
+          showAppSnackBar(context, 'Meta reiniciada');
         },
       );
 
@@ -202,16 +208,28 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: pageColor(theme),
         appBar: AppBar(
           title: const Text('Editar meta'),
           centerTitle: false,
           actions: [
-            IconButton(onPressed: _delete, icon: const Icon(Icons.delete_outline)),
+            IconButton(
+              tooltip: 'Eliminar meta',
+              onPressed: _delete,
+              icon: const Icon(Icons.delete_outline),
+            ),
             if (isPaused)
-              IconButton(onPressed: _restart, icon: const Icon(Icons.refresh))
+              IconButton(
+                tooltip: 'Reiniciar meta',
+                onPressed: _restart,
+                icon: const Icon(Icons.refresh),
+              )
             else
-              IconButton(onPressed: _pause, icon: const Icon(Icons.pause_circle_outline)),
+              IconButton(
+                tooltip: 'Pausar meta',
+                onPressed: _pause,
+                icon: const Icon(Icons.pause_circle_outline),
+              ),
           ],
         ),
         body: SafeArea(
@@ -241,6 +259,13 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   placeholder: 'Sin título',
                   keyboardType: TextInputType.text,
                 ),
+                if (_titleError != null) ...[
+                  const SizedBox(height: HitoSpacing.xs),
+                  Text(
+                    _titleError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ],
                 const SizedBox(height: HitoSpacing.md),
                 EditableGoalField(
                   label: 'Monto de meta',
@@ -250,6 +275,13 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   isAmount: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
+                if (_targetError != null) ...[
+                  const SizedBox(height: HitoSpacing.xs),
+                  Text(
+                    _targetError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ],
                 const SizedBox(height: HitoSpacing.md),
                 EditableGoalField(
                   label: 'Monto de ahorro inicial',
@@ -259,6 +291,15 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   isAmount: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
+                if (_savedExceedsTarget) ...[
+                  const SizedBox(height: HitoSpacing.xs),
+                  Text(
+                    'El monto ahorrado no debe ser mayor al monto de meta.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: HitoSpacing.md),
                 GoalDateField(date: _targetDate, onTap: _pickDate),
                 const SizedBox(height: HitoSpacing.xl),
@@ -276,7 +317,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: (_hasChanges && !_saving) ? _saveChanges : null,
+              onPressed: (_hasChanges && !_saving && !_savedExceedsTarget && _isFormComplete)
+                  ? _saveChanges
+                  : null,
               child: _saving
                   ? const SizedBox(
                       height: 18,

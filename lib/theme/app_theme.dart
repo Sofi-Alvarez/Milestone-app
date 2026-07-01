@@ -24,7 +24,10 @@ class HitoColors {
   static const tertiaryContainerLight = Color(0xFFE5EDE7);
   static const onTertiaryContainerLight = Color(0xFF16332B);
 
-  static const successLight = Color(0xFF3F7A4E);
+  // Oscurecido respecto al valor original (#3F7A4E) para que el
+  // contraste sobre surfaceContainerHighest tenga margen real por
+  // encima de AA (4.5:1) en vez de rozarlo (~4.55:1 → ~5.8:1).
+  static const successLight = Color(0xFF2E6B41);
   static const successContainerLight = Color(0xFFDCF0DF);
   static const warningLight = Color(0xFF9A6B00);
   static const warningContainerLight = Color(0xFFFCEBC4);
@@ -80,6 +83,114 @@ class HitoRadius {
   static const sm = 8.0;
   static const md = 14.0;
   static const lg = 20.0;
+}
+
+/// Sistema de superficies validado primero en Historial y ahora
+/// aplicado a toda la app: el fondo de página es un neutro medio
+/// tonalizado (leve tinte del primario), las cards son más claras que
+/// ese fondo (se diferencian por color + sombra suave, sin borde), y
+/// las superficies "hundidas" (buscadores, toggles, inputs) usan un
+/// neutro desaturado apenas más oscuro que el fondo — misma
+/// luminosidad aproximada, la tonalidad es lo que marca la diferencia.
+Color pageColor(ThemeData theme) => Color.alphaBlend(
+      theme.colorScheme.primary.withValues(alpha: 0.06),
+      theme.colorScheme.surface,
+    );
+
+Color cardColor(ThemeData theme) => theme.colorScheme.surface;
+
+Color recessedColor(ThemeData theme) => Color.alphaBlend(
+      Colors.black.withValues(alpha: 0.06),
+      Color.alphaBlend(
+        theme.colorScheme.outline.withValues(alpha: 0.08),
+        theme.colorScheme.surface,
+      ),
+    );
+
+List<BoxShadow> cardShadow() => const [
+      BoxShadow(color: Color(0x14000000), blurRadius: 3, offset: Offset(0, 1)),
+    ];
+
+List<BoxShadow> heroShadow() => const [
+      BoxShadow(color: Color(0x2A000000), blurRadius: 20, offset: Offset(0, 8)),
+    ];
+
+/// Segmented toggle único de la app — mismo componente que "Registro /
+/// Estadística" en Historial: pastilla hundida, opción activa en
+/// [theme.colorScheme.primary] con sombra, ocupa todo el ancho
+/// disponible. Reemplaza los usos sueltos de [SegmentedButton].
+class HitoToggle<T> extends StatelessWidget {
+  const HitoToggle({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<(T value, String label)> options;
+  final T selected;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: recessedColor(theme),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          for (final option in options)
+            Expanded(
+              child: _HitoToggleButton(
+                label: option.$2,
+                selected: option.$1 == selected,
+                onTap: () => onChanged(option.$1),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HitoToggleButton extends StatelessWidget {
+  const _HitoToggleButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: HitoSpacing.sm),
+        decoration: BoxDecoration(
+          color: selected ? theme.colorScheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: selected ? cardShadow() : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class HitoTheme {
@@ -173,19 +284,21 @@ class HitoTheme {
         height: 1.4,
         color: colorScheme.onSurface,
       ),
+      // 14px, no 11 — hay usuarios 60+ en el público objetivo y este
+      // estilo se usa para información real (fechas, categorías,
+      // porcentajes), no solo decoración.
       bodySmall: GoogleFonts.manrope(
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: FontWeight.w400,
         height: 1.4,
         color: colorScheme.onSurfaceVariant,
       ),
     );
 
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: colorScheme,
+    final theme = ThemeData(useMaterial3: true, colorScheme: colorScheme);
+    return theme.copyWith(
       textTheme: textTheme,
-      scaffoldBackgroundColor: colorScheme.surfaceContainerHighest,
+      scaffoldBackgroundColor: pageColor(theme),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           shape: RoundedRectangleBorder(

@@ -5,10 +5,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'data/budgets_repository.dart';
 import 'data/goals_repository.dart';
+import 'data/transactions_repository.dart';
+import 'data/user_settings.dart';
 import 'features/auth/auth_service.dart';
 import 'features/onboarding/onboarding_flow.dart';
-import 'features/savings/savings_screen.dart';
+import 'features/shell/main_shell.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 
@@ -19,17 +22,14 @@ import 'theme/app_theme.dart';
 /// cuando el envío de magic link funcione de nuevo.
 const kForceDemoAuth = true;
 
+/// Tema global — vive fuera del árbol de widgets para que Perfil pueda
+/// cambiarlo sin tener que atravesar toda la jerarquía con callbacks.
+final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  final uid = await _ensureUid();
-  final demoAuth = kForceDemoAuth ? null : FirebaseAuth.instance;
-
-  runApp(HitoApp(
-    authService: AuthService(demoAuth),
-    goalsRepository: uid == null ? null : GoalsRepository(uid),
-  ));
+  runApp(const RestartWidget(child: AppBootstrap()));
 }
 
 /// Garantiza un usuario de Firebase Auth (anónimo si no hay sesión real)
@@ -47,103 +47,105 @@ Future<String?> _ensureUid() async {
   }
 }
 
-class HitoApp extends StatefulWidget {
-  const HitoApp({
-    super.key,
-    required this.authService,
-    required this.goalsRepository,
-  });
+/// Permite reiniciar toda la app desde adentro (usado por "Cerrar
+/// sesión" y "Eliminar cuenta" en Perfil): remonta [child] con una key
+/// nueva, lo que fuerza a [AppBootstrap] a volver a resolver el uid de
+/// Firebase Auth desde cero.
+class RestartWidget extends StatefulWidget {
+  const RestartWidget({super.key, required this.child});
 
-  final AuthService authService;
-  final GoalsRepository? goalsRepository;
+  final Widget child;
 
-  @override
-  State<HitoApp> createState() => _HitoAppState();
-}
-
-class _HitoAppState extends State<HitoApp> {
-  ThemeMode _themeMode = ThemeMode.light;
-
-  void _toggleThemeMode() {
-    setState(() {
-      _themeMode = _themeMode == ThemeMode.light
-          ? ThemeMode.dark
-          : ThemeMode.light;
-    });
+  static void restartApp(BuildContext context) {
+    context.findAncestorStateOfType<_RestartWidgetState>()?._restart();
   }
 
   @override
+  State<RestartWidget> createState() => _RestartWidgetState();
+}
+
+class _RestartWidgetState extends State<RestartWidget> {
+  Key _key = UniqueKey();
+
+  void _restart() => setState(() => _key = UniqueKey());
+
+  @override
+  Widget build(BuildContext context) => KeyedSubtree(key: _key, child: widget.child);
+}
+
+/// Resuelve el uid de Firebase Auth y arma los repositorios antes de
+/// mostrar la app. Se remonta entero cuando [RestartWidget.restartApp]
+/// se dispara, así que un uid nuevo (tras cerrar sesión o eliminar la
+/// cuenta) se refleja en toda la app sin reiniciar el proceso.
+class AppBootstrap extends StatefulWidget {
+  const AppBootstrap({super.key});
+
+  @override
+  State<AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<AppBootstrap> {
+  late final Future<String?> _uidFuture = _ensureUid();
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Milestone',
-      theme: HitoTheme.light(),
-      darkTheme: HitoTheme.dark(),
-      themeMode: _themeMode,
-      home: RootScreen(
-        authService: widget.authService,
-        goalsRepository: widget.goalsRepository,
-      ),
-      builder: (context, child) => Stack(
-        children: [
-          ?child,
-          _ThemeModeToggle(
-            themeMode: _themeMode,
-            onToggle: _toggleThemeMode,
-          ),
-        ],
-      ),
+    return FutureBuilder<String?>(
+      future: _uidFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const MaterialApp(
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
+          );
+        }
+        final uid = snapshot.data;
+        final demoAuth = kForceDemoAuth ? null : FirebaseAuth.instance;
+        return HitoApp(
+          authService: AuthService(demoAuth),
+          goalsRepository: uid == null ? null : GoalsRepository(uid),
+          transactionsRepository: uid == null ? null : TransactionsRepository(uid),
+          settingsRepository: uid == null ? null : UserSettingsRepository(uid),
+          budgetsRepository: uid == null ? null : BudgetsRepository(uid),
+        );
+      },
     );
   }
 }
 
-/// Botón de QA para alternar claro/oscuro mientras se revisa el sistema
-/// visual en ambos modos. Arrastrable para no tapar botones del app bar.
-/// Quitar antes de shippear.
-class _ThemeModeToggle extends StatefulWidget {
-  const _ThemeModeToggle({required this.themeMode, required this.onToggle});
+class HitoApp extends StatelessWidget {
+  const HitoApp({
+    super.key,
+    required this.authService,
+    required this.goalsRepository,
+    required this.transactionsRepository,
+    required this.settingsRepository,
+    required this.budgetsRepository,
+  });
 
-  final ThemeMode themeMode;
-  final VoidCallback onToggle;
-
-  @override
-  State<_ThemeModeToggle> createState() => _ThemeModeToggleState();
-}
-
-class _ThemeModeToggleState extends State<_ThemeModeToggle> {
-  Offset? _position;
+  final AuthService authService;
+  final GoalsRepository? goalsRepository;
+  final TransactionsRepository? transactionsRepository;
+  final UserSettingsRepository? settingsRepository;
+  final BudgetsRepository? budgetsRepository;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.themeMode == ThemeMode.dark;
-    final screenSize = MediaQuery.of(context).size;
-    final position = _position ?? Offset(screenSize.width - 56, 80);
-
-    return Positioned(
-      left: position.dx,
-      top: position.dy,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            final next = position + details.delta;
-            _position = Offset(
-              next.dx.clamp(0, screenSize.width - 48),
-              next.dy.clamp(0, screenSize.height - 48),
-            );
-          });
-        },
-        child: Material(
-          color: Colors.black87,
-          shape: const CircleBorder(),
-          child: IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode : Icons.dark_mode,
-              color: Colors.white,
-              size: 20,
-            ),
-            onPressed: widget.onToggle,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeModeNotifier,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'Milestone',
+          theme: HitoTheme.light(),
+          darkTheme: HitoTheme.dark(),
+          themeMode: themeMode,
+          home: RootScreen(
+            authService: authService,
+            goalsRepository: goalsRepository,
+            transactionsRepository: transactionsRepository,
+            settingsRepository: settingsRepository,
+            budgetsRepository: budgetsRepository,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -154,10 +156,16 @@ class RootScreen extends StatefulWidget {
     super.key,
     required this.authService,
     required this.goalsRepository,
+    required this.transactionsRepository,
+    required this.settingsRepository,
+    required this.budgetsRepository,
   });
 
   final AuthService authService;
   final GoalsRepository? goalsRepository;
+  final TransactionsRepository? transactionsRepository;
+  final UserSettingsRepository? settingsRepository;
+  final BudgetsRepository? budgetsRepository;
 
   @override
   State<RootScreen> createState() => _RootScreenState();
@@ -220,7 +228,12 @@ class _RootScreenState extends State<RootScreen> {
   @override
   Widget build(BuildContext context) {
     if (_returningUser || _enteredHome) {
-      return HomePlaceholder(goalsRepository: widget.goalsRepository);
+      return HomePlaceholder(
+        goalsRepository: widget.goalsRepository,
+        transactionsRepository: widget.transactionsRepository,
+        settingsRepository: widget.settingsRepository,
+        budgetsRepository: widget.budgetsRepository,
+      );
     }
     return OnboardingFlow(
       authService: _authService,
@@ -233,17 +246,26 @@ class _RootScreenState extends State<RootScreen> {
   }
 }
 
-/// TODO: el Home (lib/features/home/) queda pendiente de revisión visual.
-/// Mientras tanto, después del onboarding entramos directo a la sección de
-/// Ahorro > Metas, que es el flujo que se está afinando ahora.
 class HomePlaceholder extends StatelessWidget {
-  const HomePlaceholder({super.key, required this.goalsRepository});
+  const HomePlaceholder({
+    super.key,
+    required this.goalsRepository,
+    required this.transactionsRepository,
+    required this.settingsRepository,
+    required this.budgetsRepository,
+  });
 
   final GoalsRepository? goalsRepository;
+  final TransactionsRepository? transactionsRepository;
+  final UserSettingsRepository? settingsRepository;
+  final BudgetsRepository? budgetsRepository;
 
   @override
   Widget build(BuildContext context) {
-    if (goalsRepository == null) {
+    if (goalsRepository == null ||
+        transactionsRepository == null ||
+        settingsRepository == null ||
+        budgetsRepository == null) {
       return const Scaffold(
         body: Center(
           child: Padding(
@@ -258,6 +280,11 @@ class HomePlaceholder extends StatelessWidget {
         ),
       );
     }
-    return SavingsScreen(goalsRepository: goalsRepository!);
+    return MainShell(
+      goalsRepository: goalsRepository!,
+      transactionsRepository: transactionsRepository!,
+      settingsRepository: settingsRepository!,
+      budgetsRepository: budgetsRepository!,
+    );
   }
 }

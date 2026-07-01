@@ -22,8 +22,11 @@ void openGoalDetail(
 }
 
 /// Vista detalle para una meta activa o pausada — mismo layout, solo
-/// cambia la etiqueta/color del badge de estado.
-class GoalDetailScreen extends StatelessWidget {
+/// cambia la etiqueta/color del badge de estado. Escucha la meta en vivo
+/// (vía [GoalsRepository.watchGoal]) para reflejar pausa/reinicio hechos
+/// desde Editar meta sin necesitar volver atrás; si la meta se elimina,
+/// vuelve sola a la pantalla de Ahorro.
+class GoalDetailScreen extends StatefulWidget {
   const GoalDetailScreen({
     super.key,
     required this.repository,
@@ -33,7 +36,14 @@ class GoalDetailScreen extends StatelessWidget {
   final GoalsRepository repository;
   final Goal goal;
 
-  Color _statusColor(BuildContext context) {
+  @override
+  State<GoalDetailScreen> createState() => _GoalDetailScreenState();
+}
+
+class _GoalDetailScreenState extends State<GoalDetailScreen> {
+  bool _poppedForDeletion = false;
+
+  Color _statusColor(BuildContext context, Goal goal) {
     final colorScheme = Theme.of(context).colorScheme;
     if (goal.lifecycle == GoalLifecycle.paused) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -49,21 +59,62 @@ class GoalDetailScreen extends StatelessWidget {
     }
   }
 
-  String get _statusLabel =>
+  String _statusLabel(Goal goal) =>
       goal.lifecycle == GoalLifecycle.paused ? 'Pausada' : goal.paceLabel;
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<Goal?>(
+      stream: widget.repository.watchGoal(widget.goal.id),
+      initialData: widget.goal,
+      builder: (context, snapshot) {
+        final goal = snapshot.data;
+        if (goal == null) {
+          if (!_poppedForDeletion) {
+            _poppedForDeletion = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            });
+          }
+          return const Scaffold(body: SizedBox.shrink());
+        }
+        return _GoalDetailBody(
+          repository: widget.repository,
+          goal: goal,
+          statusColor: _statusColor(context, goal),
+          statusLabel: _statusLabel(goal),
+        );
+      },
+    );
+  }
+}
+
+class _GoalDetailBody extends StatelessWidget {
+  const _GoalDetailBody({
+    required this.repository,
+    required this.goal,
+    required this.statusColor,
+    required this.statusLabel,
+  });
+
+  final GoalsRepository repository;
+  final Goal goal;
+  final Color statusColor;
+  final String statusLabel;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor = _statusColor(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: pageColor(theme),
       appBar: AppBar(
         title: const Text('Vista detalle'),
         centerTitle: false,
         actions: [
           IconButton(
+            tooltip: 'Editar meta',
             onPressed: () => openEditGoalScreen(
               context,
               repository: repository,
@@ -101,7 +152,7 @@ class GoalDetailScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(HitoRadius.lg),
                     ),
                     child: Text(
-                      _statusLabel,
+                      statusLabel,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: statusColor,
                         fontWeight: FontWeight.w600,
@@ -182,9 +233,7 @@ class GoalDetailScreen extends StatelessWidget {
                   Expanded(
                     child: _InfoTile(
                       label: 'Tiempo estimado',
-                      value: goal.targetDate == null
-                          ? 'Sin fecha'
-                          : '${goal.estimatedWeeksLeft} semanas',
+                      value: goal.estimatedTimeLeftLabel,
                     ),
                   ),
                 ],
@@ -194,8 +243,9 @@ class GoalDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(HitoSpacing.md),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
+                  color: cardColor(theme),
                   borderRadius: BorderRadius.circular(HitoRadius.md),
+                  boxShadow: cardShadow(),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,6 +298,7 @@ class GoalDetailScreen extends StatelessWidget {
               context,
               repository: repository,
               goalId: goal.id,
+              goalTitle: goal.title,
             ),
             child: const Text('Añadir ahorro'),
           ),
@@ -269,8 +320,9 @@ class _InfoTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(HitoSpacing.md),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: cardColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
+        boxShadow: cardShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

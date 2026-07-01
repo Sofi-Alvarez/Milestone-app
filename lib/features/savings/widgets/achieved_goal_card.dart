@@ -64,8 +64,7 @@ class AchievedGoalCard extends StatelessWidget {
 
   String _durationLabel(Goal goal) {
     final end = goal.achievedAt ?? DateTime.now();
-    final months = (end.difference(goal.createdAt).inDays / 30).round();
-    return months <= 1 ? '1 mes' : '$months meses';
+    return formatDuration(end.difference(goal.createdAt).inDays);
   }
 }
 

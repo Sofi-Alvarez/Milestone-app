@@ -46,11 +46,12 @@ class Goal {
     return remaining / days;
   }
 
-  /// Tiempo restante hasta la fecha objetivo, en semanas.
-  int get estimatedWeeksLeft {
-    if (targetDate == null) return 0;
+  /// Tiempo restante hasta la fecha objetivo, en la unidad que corresponda
+  /// (días/meses/años — ver [formatDuration]).
+  String get estimatedTimeLeftLabel {
+    if (targetDate == null) return 'Sin fecha';
     final days = targetDate!.difference(DateTime.now()).inDays;
-    return (days / 7).ceil().clamp(0, 100000);
+    return formatDuration(days);
   }
 
   /// Compara el progreso real contra el progreso esperado a esta fecha
@@ -79,27 +80,25 @@ class Goal {
     }
   }
 
-  /// "Finaliza en X meses" / "Requiere $X/mes" / "Ventaja de X semanas".
+  /// "Finaliza en X" / "Requiere $X/mes" / "Ventaja de X".
   String get paceNote {
     if (targetDate == null) return 'Sin fecha objetivo';
     final totalDays = targetDate!.difference(createdAt).inDays;
     final daysLeft = targetDate!.difference(DateTime.now()).inDays;
     switch (pace) {
       case GoalPace.onTime:
-        final months = (daysLeft / 30).ceil().clamp(0, 100000);
-        return 'Finaliza en $months meses';
+        return 'Finaliza en ${formatDuration(daysLeft)}';
       case GoalPace.late:
         final monthsLeft = (daysLeft / 30).clamp(1, 100000);
         final remaining = targetAmount - savedAmount;
         final perMonth = remaining / monthsLeft;
         return 'Requiere ${_formatMoney(perMonth)}/mes';
       case GoalPace.ahead:
-        if (totalDays <= 0) return 'Ventaja de 0 semanas';
+        if (totalDays <= 0) return 'Ventaja de 0 días';
         final elapsedDays = DateTime.now().difference(createdAt).inDays;
         final expectedProgress = (elapsedDays / totalDays).clamp(0.0, 1.0);
         final aheadDays = ((progress - expectedProgress) * totalDays).round();
-        final weeks = (aheadDays / 7).round().clamp(0, 100000);
-        return 'Ventaja de $weeks semanas';
+        return 'Ventaja de ${formatDuration(aheadDays)}';
     }
   }
 
@@ -156,6 +155,25 @@ class Goal {
       if (achievedAt != null) 'achievedAt': Timestamp.fromDate(achievedAt!),
     };
   }
+}
+
+/// Elige la unidad según la magnitud: días si es menos de un mes, meses si
+/// es menos de un año, años + meses si es un año o más.
+String formatDuration(int days) {
+  final clamped = days.clamp(0, 1000000);
+  if (clamped < 30) {
+    return clamped == 1 ? '1 día' : '$clamped días';
+  }
+  if (clamped < 365) {
+    final months = (clamped / 30).round().clamp(1, 11);
+    return months == 1 ? '1 mes' : '$months meses';
+  }
+  final years = clamped ~/ 365;
+  final remainingMonths = ((clamped % 365) / 30).round().clamp(0, 11);
+  final yearsLabel = years == 1 ? '1 año' : '$years años';
+  if (remainingMonths == 0) return yearsLabel;
+  final monthsLabel = remainingMonths == 1 ? '1 mes' : '$remainingMonths meses';
+  return '$yearsLabel $monthsLabel';
 }
 
 String _formatMoney(double value) {

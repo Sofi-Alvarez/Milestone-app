@@ -22,7 +22,7 @@ class GoalCreatedScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: pageColor(theme),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(HitoSpacing.lg),
@@ -78,7 +78,7 @@ class GoalCreatedScreen extends StatelessWidget {
                     const SizedBox(width: HitoSpacing.sm),
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: theme.colorScheme.surface,
+                      backgroundColor: cardColor(theme),
                       child: Icon(
                         Icons.lightbulb_outline,
                         size: 18,
@@ -94,6 +94,7 @@ class GoalCreatedScreen extends StatelessWidget {
                   context,
                   repository: repository,
                   goalId: goalId,
+                  goalTitle: title,
                 ),
                 child: const Text('Añadir ahorro'),
               ),
@@ -101,7 +102,7 @@ class GoalCreatedScreen extends StatelessWidget {
               TextButton(
                 onPressed: () =>
                     Navigator.of(context).popUntil((route) => route.isFirst),
-                child: const Text('Volver al inicio'),
+                child: const Text('Volver a Ahorro'),
               ),
             ],
           ),

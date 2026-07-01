@@ -20,9 +20,9 @@ class AnalysisCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(HitoSpacing.md),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.4)),
+        color: cardColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
+        boxShadow: cardShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

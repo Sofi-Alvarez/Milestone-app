@@ -42,15 +42,15 @@ class AchievedGoalDetailScreen extends StatelessWidget {
     final achievedColor =
         isDark ? HitoColors.successDark : HitoColors.successLight;
     final achievedDate = goal.achievedAt;
-    final months = achievedDate == null
-        ? 0
-        : (achievedDate.difference(goal.createdAt).inDays / 30).round();
+    final durationLabel = achievedDate == null
+        ? '—'
+        : formatDuration(achievedDate.difference(goal.createdAt).inDays);
     final onTime = goal.targetDate != null &&
         achievedDate != null &&
         !achievedDate.isAfter(goal.targetDate!);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: pageColor(theme),
       appBar: AppBar(title: const Text('Vista detalle'), centerTitle: false),
       body: SafeArea(
         top: false,
@@ -152,7 +152,7 @@ class AchievedGoalDetailScreen extends StatelessWidget {
                   Expanded(
                     child: _InfoTile(
                       label: 'Lo logró en',
-                      value: months <= 1 ? '1 mes' : '$months meses',
+                      value: durationLabel,
                     ),
                   ),
                 ],
@@ -162,8 +162,9 @@ class AchievedGoalDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(HitoSpacing.md),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
+                  color: cardColor(theme),
                   borderRadius: BorderRadius.circular(HitoRadius.md),
+                  boxShadow: cardShadow(),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,8 +242,9 @@ class _InfoTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(HitoSpacing.md),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: cardColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
+        boxShadow: cardShadow(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

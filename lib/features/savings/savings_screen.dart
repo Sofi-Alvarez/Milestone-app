@@ -1,23 +1,33 @@
 import 'package:flutter/material.dart';
 
+import '../../data/budgets_repository.dart';
 import '../../data/goal.dart';
 import '../../data/goals_repository.dart';
+import '../../data/transactions_repository.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bottom_nav_bar.dart';
+import 'budget_tab_view.dart';
 import 'create_goal_screen.dart';
 import 'goal_detail_screen.dart';
 import 'goals_list_screen.dart';
 import 'widgets/add_savings_sheet.dart';
 import 'widgets/analysis_card.dart';
+import 'widgets/goal_form_fields.dart';
 import 'widgets/goal_summary_card.dart';
 import 'widgets/total_saved_card.dart';
 
 enum _SavingsTab { metas, presupuesto }
 
 class SavingsScreen extends StatefulWidget {
-  const SavingsScreen({super.key, required this.goalsRepository});
+  const SavingsScreen({
+    super.key,
+    required this.goalsRepository,
+    required this.transactionsRepository,
+    required this.budgetsRepository,
+  });
 
   final GoalsRepository goalsRepository;
+  final TransactionsRepository transactionsRepository;
+  final BudgetsRepository budgetsRepository;
 
   @override
   State<SavingsScreen> createState() => _SavingsScreenState();
@@ -25,22 +35,17 @@ class SavingsScreen extends StatefulWidget {
 
 class _SavingsScreenState extends State<SavingsScreen> {
   _SavingsTab _tab = _SavingsTab.metas;
-  int _navIndex = 1;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: pageColor(theme),
       appBar: AppBar(
         title: const Text('Ahorro'),
         centerTitle: true,
         automaticallyImplyLeading: false,
-      ),
-      bottomNavigationBar: HitoBottomNavBar(
-        currentIndex: _navIndex,
-        onTap: (index) => setState(() => _navIndex = index),
       ),
       body: StreamBuilder<List<Goal>>(
         stream: widget.goalsRepository.watchGoals(),
@@ -75,19 +80,21 @@ class _SavingsScreenState extends State<SavingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SegmentedButton<_SavingsTab>(
-                    segments: const [
-                      ButtonSegment(value: _SavingsTab.metas, label: Text('Metas')),
-                      ButtonSegment(
-                        value: _SavingsTab.presupuesto,
-                        label: Text('Presupuesto'),
-                      ),
+                  HitoToggle<_SavingsTab>(
+                    options: const [
+                      (_SavingsTab.metas, 'Metas'),
+                      (_SavingsTab.presupuesto, 'Presupuesto'),
                     ],
-                    selected: {_tab},
-                    onSelectionChanged: (selection) =>
-                        setState(() => _tab = selection.first),
+                    selected: _tab,
+                    onChanged: (t) => setState(() => _tab = t),
                   ),
                   const SizedBox(height: HitoSpacing.lg),
+                  if (_tab == _SavingsTab.presupuesto)
+                    BudgetTabView(
+                      budgetsRepository: widget.budgetsRepository,
+                      transactionsRepository: widget.transactionsRepository,
+                    )
+                  else ...[
                   TotalSavedCard(
                     total: totalSaved,
                     monthChangePercent: 0,
@@ -113,7 +120,9 @@ class _SavingsScreenState extends State<SavingsScreen> {
                         child: AnalysisCard(
                           icon: Icons.event_outlined,
                           label: 'Próximo hito',
-                          value: nextDue?.title ?? 'Sin datos',
+                          value: nextDue == null
+                              ? 'Sin datos'
+                              : formatGoalDate(nextDue.targetDate!),
                         ),
                       ),
                     ],
@@ -124,13 +133,15 @@ class _SavingsScreenState extends State<SavingsScreen> {
                     children: [
                       Text('Proyección de metas', style: theme.textTheme.headlineMedium),
                       TextButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => GoalsListScreen(
-                              goalsRepository: widget.goalsRepository,
-                            ),
-                          ),
-                        ),
+                        onPressed: goals.isEmpty
+                            ? null
+                            : () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => GoalsListScreen(
+                                      goalsRepository: widget.goalsRepository,
+                                    ),
+                                  ),
+                                ),
                         child: const Text('Ver todo'),
                       ),
                     ],
@@ -140,8 +151,9 @@ class _SavingsScreenState extends State<SavingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(HitoSpacing.lg),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
+                        color: cardColor(theme),
                         borderRadius: BorderRadius.circular(HitoRadius.md),
+                        boxShadow: cardShadow(),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -160,6 +172,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                           context,
                           repository: widget.goalsRepository,
                           goalId: goal.id,
+                          goalTitle: goal.title,
                         ),
                         onViewDetail: () => openGoalDetail(
                           context,
@@ -169,6 +182,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                       ),
                       const SizedBox(height: HitoSpacing.sm),
                     ],
+                  ],
                 ],
               ),
             ),
