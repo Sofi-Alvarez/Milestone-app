@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/budget.dart';
 import '../../data/budgets_repository.dart';
 import '../../data/goal.dart';
 import '../../data/goals_repository.dart';
@@ -35,6 +36,10 @@ class SavingsScreen extends StatefulWidget {
 
 class _SavingsScreenState extends State<SavingsScreen> {
   _SavingsTab _tab = _SavingsTab.metas;
+
+  /// Presupuesto de "Cargar un ejemplo para explorar" — vive acá, no en
+  /// Firestore, y desaparece con "Salir de la exploración".
+  Budget? _explorationBudget;
 
   @override
   Widget build(BuildContext context) {
@@ -88,11 +93,24 @@ class _SavingsScreenState extends State<SavingsScreen> {
                     selected: _tab,
                     onChanged: (t) => setState(() => _tab = t),
                   ),
+                  if (_tab == _SavingsTab.presupuesto && _explorationBudget != null) ...[
+                    const SizedBox(height: HitoSpacing.xs),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _explorationBudget = null),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Salir de la exploración'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: HitoSpacing.lg),
                   if (_tab == _SavingsTab.presupuesto)
                     BudgetTabView(
                       budgetsRepository: widget.budgetsRepository,
                       transactionsRepository: widget.transactionsRepository,
+                      explorationBudget: _explorationBudget,
+                      onLoadExample: () => setState(() => _explorationBudget = buildExampleBudget()),
                     )
                   else ...[
                   TotalSavedCard(

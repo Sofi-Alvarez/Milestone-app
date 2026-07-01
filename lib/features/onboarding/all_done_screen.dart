@@ -41,7 +41,7 @@ class AllDoneScreen extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: onEnter,
-                  child: const Text('Entrar a Milestone'),
+                  child: const Text('Comenzar'),
                 ),
               ),
             ],

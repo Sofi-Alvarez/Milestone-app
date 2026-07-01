@@ -55,10 +55,12 @@ class _CheckEmailScreenState extends State<CheckEmailScreen> {
                 ),
               ),
               const SizedBox(height: HitoSpacing.lg),
-              Text(
-                'Revisá tu correo',
-                style: theme.textTheme.headlineLarge,
-                textAlign: TextAlign.center,
+              Center(
+                child: Text(
+                  'Revisá tu correo',
+                  style: theme.textTheme.headlineLarge,
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: HitoSpacing.sm),
               Text(

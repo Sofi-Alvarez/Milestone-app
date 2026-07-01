@@ -14,12 +14,14 @@ class AuthService {
 
   final FirebaseAuth? auth;
 
-  // `flutter run -d chrome --web-port=5000` sirve la app en este origen;
-  // Firebase Auth autoriza `localhost` por defecto, así que el magic link
-  // abre la misma pestaña y la app lo captura al recargar (ver main.dart).
-  // En producción esto debe ser el dominio real de la app (ej. Firebase
-  // Hosting), agregado en Authentication > Settings > Authorized domains.
-  static const _continueUrl = 'http://localhost:5000';
+  // Se resuelve en tiempo de ejecución contra el origen real desde el
+  // que se está sirviendo la app — así el magic link funciona igual en
+  // localhost durante desarrollo y en el dominio real de producción
+  // (Firebase Hosting), sin hardcodear ningún puerto ni URL. Ese
+  // dominio igual tiene que estar agregado en Authentication >
+  // Settings > Authorized domains (Firebase Hosting se agrega solo al
+  // desplegar sobre el mismo proyecto).
+  static String get _continueUrl => Uri.base.origin;
   static const _androidPackageName = 'com.hitoapp.hito';
   static const _iosBundleId = 'com.hitoapp.hito';
   static const _pendingEmailKey = 'hito_pending_magic_link_email';

@@ -42,8 +42,31 @@ class BudgetsRepository {
     return _ref.doc(id).update(budget.toFirestore());
   }
 
+  /// Para cancelar — pausar/reanudar usan [pauseBudget]/[resumeBudget],
+  /// que además marcan la ventana congelada.
   Future<void> setStatus(String id, BudgetStatus status) {
+    assert(status != BudgetStatus.paused, 'usar pauseBudget()');
     return _ref.doc(id).update({'status': status.name});
+  }
+
+  /// Pausa el presupuesto y abre la ventana "congelada": los gastos
+  /// hechos desde ahora hasta que se reanude no van a contar contra
+  /// el presupuesto (ver `computeBudgetProgress`).
+  Future<void> pauseBudget(String id) {
+    return _ref.doc(id).update({
+      'status': BudgetStatus.paused.name,
+      'pausedAt': Timestamp.now(),
+      'resumedAt': FieldValue.delete(),
+    });
+  }
+
+  /// Reanuda un presupuesto pausado y cierra la ventana congelada —
+  /// los gastos de acá en más vuelven a contar normalmente.
+  Future<void> resumeBudget(String id) {
+    return _ref.doc(id).update({
+      'status': BudgetStatus.active.name,
+      'resumedAt': Timestamp.now(),
+    });
   }
 
   Future<void> deleteBudget(String id) {

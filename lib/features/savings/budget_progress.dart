@@ -11,15 +11,34 @@ class BudgetProgress {
   final Map<String, double> spentByCategory;
 
   double spentFor(String categoryId) => spentByCategory[categoryId] ?? 0;
+
+  /// Gasto en categorías que no tienen una asignación en el
+  /// presupuesto — un gasto real que igual descuenta del límite
+  /// general, pero no pertenece a ninguna barra de categoría.
+  double unassignedSpent(Budget budget) {
+    final allocatedIds = budget.categories.map((c) => c.categoryId).toSet();
+    return spentByCategory.entries
+        .where((e) => !allocatedIds.contains(e.key))
+        .fold(0.0, (sum, e) => sum + e.value);
+  }
 }
 
 BudgetProgress computeBudgetProgress(Budget budget, List<MoneyTransaction> transactions) {
-  final relevant = transactions.where(
-    (t) =>
-        t.type == TransactionType.expense &&
-        !t.date.isBefore(budget.startDate) &&
-        !t.date.isAfter(budget.endDate),
-  );
+  final relevant = transactions.where((t) {
+    if (t.type != TransactionType.expense) return false;
+    if (t.date.isBefore(budget.startDate) || t.date.isAfter(budget.endDate)) return false;
+    // Ventana "congelada": mientras el presupuesto estuvo pausado, los
+    // gastos hechos en ese lapso no cuentan — ni ahora ni si se
+    // reanuda más tarde.
+    if (budget.pausedAt != null) {
+      final freezeStart = budget.pausedAt!;
+      final freezeEnd = budget.status == BudgetStatus.paused
+          ? DateTime.now()
+          : (budget.resumedAt ?? budget.pausedAt!);
+      if (!t.date.isBefore(freezeStart) && !t.date.isAfter(freezeEnd)) return false;
+    }
+    return true;
+  });
   var total = 0.0;
   final byCategory = <String, double>{};
   for (final t in relevant) {

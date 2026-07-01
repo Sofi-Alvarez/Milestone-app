@@ -183,6 +183,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       status: existing?.status ?? BudgetStatus.active,
       categories: _type == BudgetType.byCategory ? _categories : const [],
       createdAt: existing?.createdAt ?? DateTime.now(),
+      pausedAt: existing?.pausedAt,
+      resumedAt: existing?.resumedAt,
     );
     try {
       if (existing != null) {

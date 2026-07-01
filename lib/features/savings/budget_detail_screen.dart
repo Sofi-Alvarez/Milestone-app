@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../data/budget.dart';
@@ -12,12 +14,15 @@ import '../home/models/home_models.dart';
 import 'budget_history_screen.dart';
 import 'budget_progress.dart';
 import 'create_budget_screen.dart';
+import 'widgets/budget_status_pill.dart';
+import 'widgets/goal_form_fields.dart';
 
 void openBudgetDetailScreen(
   BuildContext context, {
   required BudgetsRepository budgetsRepository,
   required TransactionsRepository transactionsRepository,
   required Budget budget,
+  BudgetProgress? exampleProgress,
 }) {
   Navigator.of(context).push(
     MaterialPageRoute(
@@ -25,6 +30,7 @@ void openBudgetDetailScreen(
         budgetsRepository: budgetsRepository,
         transactionsRepository: transactionsRepository,
         budget: budget,
+        exampleProgress: exampleProgress,
       ),
     ),
   );
@@ -36,20 +42,34 @@ class BudgetDetailScreen extends StatelessWidget {
     required this.budgetsRepository,
     required this.transactionsRepository,
     required this.budget,
+    this.exampleProgress,
   });
 
   final BudgetsRepository budgetsRepository;
   final TransactionsRepository transactionsRepository;
   final Budget budget;
 
+  /// Si viene seteado, la pantalla usa este progreso fijo y desactiva
+  /// las acciones que escriben en Firestore ("Editar", "Reasignar",
+  /// "Pausar", "Cancelar") — es el modo "Cargar un ejemplo".
+  final BudgetProgress? exampleProgress;
+
+  bool get isExample => exampleProgress != null;
+
   Future<void> _pause(BuildContext context) async {
     final resume = budget.status == BudgetStatus.paused;
-    await budgetsRepository.setStatus(
-      budget.id,
-      resume ? BudgetStatus.active : BudgetStatus.paused,
-    );
+    if (resume) {
+      await budgetsRepository.resumeBudget(budget.id);
+    } else {
+      await budgetsRepository.pauseBudget(budget.id);
+    }
     if (context.mounted) {
-      showAppSnackBar(context, resume ? 'Presupuesto reactivado' : 'Presupuesto pausado');
+      showAppSnackBar(
+        context,
+        resume
+            ? 'Presupuesto reactivado'
+            : 'Presupuesto pausado — los gastos de acá en más no se van a contar hasta que lo reactivés',
+      );
     }
   }
 
@@ -69,20 +89,46 @@ class BudgetDetailScreen extends StatelessWidget {
     }
   }
 
-  Budget _withCategories(List<BudgetCategoryAllocation> categories) => Budget(
-        id: budget.id,
-        name: budget.name,
-        type: budget.type,
-        limitAmount: budget.limitAmount,
-        startDate: budget.startDate,
-        endDate: budget.endDate,
-        note: budget.note,
-        notifyExceeded: budget.notifyExceeded,
-        notifyNearLimit: budget.notifyNearLimit,
-        status: budget.status,
-        categories: categories,
-        createdAt: budget.createdAt,
-      );
+  Budget _withCategories(List<BudgetCategoryAllocation> categories) => _copyWith(categories: categories);
+
+  Budget _withLimit(double limitAmount) => _copyWith(limitAmount: limitAmount);
+
+  Budget _copyWith({List<BudgetCategoryAllocation>? categories, double? limitAmount}) => Budget(
+    id: budget.id,
+    name: budget.name,
+    type: budget.type,
+    limitAmount: limitAmount ?? budget.limitAmount,
+    startDate: budget.startDate,
+    endDate: budget.endDate,
+    note: budget.note,
+    notifyExceeded: budget.notifyExceeded,
+    notifyNearLimit: budget.notifyNearLimit,
+    status: budget.status,
+    categories: categories ?? budget.categories,
+    createdAt: budget.createdAt,
+    pausedAt: budget.pausedAt,
+    resumedAt: budget.resumedAt,
+  );
+
+  /// Atajo para "Presupuesto general": ajustar el límite con +/- sin
+  /// pasar por el wizard completo de edición.
+  Future<void> _quickAdjustLimit(BuildContext context) async {
+    final newLimit = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _QuickAdjustLimitSheet(currentLimit: budget.limitAmount),
+    );
+    if (newLimit == null || !context.mounted) return;
+    try {
+      await budgetsRepository.updateBudget(budget.id, _withLimit(newLimit));
+      if (context.mounted) showAppSnackBar(context, 'Límite actualizado');
+    } catch (e) {
+      if (context.mounted) {
+        showAppSnackBar(context, 'No pudimos actualizar el límite: $e', isError: true);
+      }
+    }
+  }
 
   /// Mueve fondos del límite de una categoría con sobrante hacia una
   /// categoría excedida o cerca del límite — ajusta los límites
@@ -105,7 +151,11 @@ class BudgetDetailScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ReassignFundsSheet(target: target, candidates: candidates, progress: progress),
+      builder: (_) => _ReassignFundsSheet(
+        target: target,
+        candidates: candidates,
+        progress: progress,
+      ),
     );
     if (result == null || !context.mounted) return;
 
@@ -132,7 +182,11 @@ class BudgetDetailScreen extends StatelessWidget {
       if (context.mounted) showAppSnackBar(context, 'Fondos reasignados');
     } catch (e) {
       if (context.mounted) {
-        showAppSnackBar(context, 'No pudimos reasignar los fondos: $e', isError: true);
+        showAppSnackBar(
+          context,
+          'No pudimos reasignar los fondos: $e',
+          isError: true,
+        );
       }
     }
   }
@@ -144,227 +198,366 @@ class BudgetDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: pageColor(theme),
       appBar: AppBar(
-        title: Text(budget.name),
-        centerTitle: false,
-        actions: [
-          if (!budget.isPastEnd)
-            IconButton(
-              tooltip: 'Editar presupuesto',
-              onPressed: () => openCreateBudgetScreen(
-                context,
-                repository: budgetsRepository,
-                existingBudget: budget,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(budget.name),
+            Text(
+              'Vence ${formatGoalDate(budget.endDate)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              icon: const Icon(Icons.edit_outlined),
             ),
-        ],
+          ],
+        ),
+        centerTitle: false,
       ),
       body: SafeArea(
         top: false,
-        child: StreamBuilder<List<MoneyTransaction>>(
-          stream: transactionsRepository.watchTransactions(limit: 500),
-          builder: (context, snapshot) {
-            final transactions = snapshot.data ?? const <MoneyTransaction>[];
-            final progress = computeBudgetProgress(budget, transactions);
-            final health = budgetHealthFor(progress.spentTotal, budget.limitAmount);
-
-            // Pasada la fecha límite, el presupuesto "se cierra" solo —
-            // no hay job de servidor que lo marque, así que el cierre se
-            // muestra apenas alguien vuelve a abrir este presupuesto
-            // vencido, con el resumen final en vez de los controles de
-            // un presupuesto en curso.
-            if (budget.isPastEnd) {
-              return _ClosedBudgetSummary(
-                budget: budget,
-                progress: progress,
-                budgetsRepository: budgetsRepository,
-                transactionsRepository: transactionsRepository,
-              );
-            }
-
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(
-                HitoSpacing.lg,
-                HitoSpacing.md,
-                HitoSpacing.lg,
-                HitoSpacing.xxl,
+        child: isExample
+            ? _buildContent(context, exampleProgress!)
+            : StreamBuilder<List<MoneyTransaction>>(
+                stream: transactionsRepository.watchTransactions(limit: 500),
+                builder: (context, snapshot) {
+                  final transactions =
+                      snapshot.data ?? const <MoneyTransaction>[];
+                  return _buildContent(
+                    context,
+                    computeBudgetProgress(budget, transactions),
+                  );
+                },
               ),
-              children: [
-                _BudgetHeroCard(budget: budget, progress: progress, health: health),
-                const SizedBox(height: HitoSpacing.md),
-                if (health != BudgetHealthStatus.onTrack)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: HitoSpacing.md),
-                    child: _HealthBanner(health: health),
-                  ),
-                if (budget.type == BudgetType.byCategory && budget.categories.isNotEmpty) ...[
-                  _CategoryGroups(
-                    budget: budget,
-                    progress: progress,
-                    onReassign: (target) => _reassignFunds(context, progress, target),
-                  ),
-                  const SizedBox(height: HitoSpacing.md),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _pause(context),
-                        child: Text(
-                          budget.status == BudgetStatus.paused ? 'Reanudar' : 'Pausar',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: HitoSpacing.sm),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: theme.colorScheme.error,
-                          side: BorderSide(color: theme.colorScheme.error, width: 1.5),
-                        ),
-                        onPressed: () => _cancel(context),
-                        child: const Text('Cancelar'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: HitoSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () => openCreateBudgetScreen(
-                      context,
-                      repository: budgetsRepository,
-                      duplicateFrom: budget,
-                    ),
-                    icon: const Icon(Icons.copy_outlined, size: 18),
-                    label: const Text('Duplicar como nuevo presupuesto'),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
       ),
     );
   }
-}
 
-class _BudgetHeroCard extends StatelessWidget {
-  const _BudgetHeroCard({required this.budget, required this.progress, required this.health});
-
-  final Budget budget;
-  final BudgetProgress progress;
-  final BudgetHealthStatus health;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildContent(BuildContext context, BudgetProgress progress) {
     final theme = Theme.of(context);
+    final health = budgetHealthFor(progress.spentTotal, budget.limitAmount);
     final ratio = budget.limitAmount <= 0
         ? 0.0
         : (progress.spentTotal / budget.limitAmount).clamp(0.0, 1.0);
     final remaining = budget.limitAmount - progress.spentTotal;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(HitoSpacing.lg),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: heroShadow(),
+    if (budget.isPastEnd) {
+      return _ClosedBudgetSummary(
+        budget: budget,
+        progress: progress,
+        budgetsRepository: budgetsRepository,
+        transactionsRepository: transactionsRepository,
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        HitoSpacing.lg,
+        HitoSpacing.md,
+        HitoSpacing.lg,
+        HitoSpacing.xxl,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      children: [
+        _GaugeCard(
+          ratio: ratio,
+          health: health,
+          status: budget.status,
+          spentTotal: progress.spentTotal,
+          remaining: remaining,
+          limitAmount: budget.limitAmount,
+          daysLeft: budget.isPastEnd ? 'Vencido' : '${budget.daysLeft} días',
+        ),
+        const SizedBox(height: HitoSpacing.md),
+        _DetailBanner(health: health, hasSpending: progress.spentTotal > 0),
+        if (budget.type == BudgetType.byCategory &&
+            budget.categories.isNotEmpty) ...[
+          const SizedBox(height: HitoSpacing.lg),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'GASTADO DE ${formatCurrency(budget.limitAmount)}',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.8),
-                  letterSpacing: 0.6,
+              Text('Categorías', style: theme.textTheme.headlineMedium),
+              if (!isExample)
+                TextButton(
+                  onPressed: () => openCreateBudgetScreen(
+                    context,
+                    repository: budgetsRepository,
+                    existingBudget: budget,
+                  ),
+                  child: const Text('Editar'),
                 ),
-              ),
-              _StatusChip(status: budget.status, health: health),
             ],
-          ),
-          const SizedBox(height: HitoSpacing.xs),
-          Text(
-            formatCurrency(progress.spentTotal),
-            style: theme.textTheme.displayMedium?.copyWith(color: theme.colorScheme.onPrimary),
           ),
           const SizedBox(height: HitoSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(HitoRadius.sm),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 8,
-              backgroundColor: theme.colorScheme.onPrimary.withValues(alpha: 0.2),
-              color: health == BudgetHealthStatus.exceeded
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.onPrimary,
+          for (final c in budget.categories) ...[
+            _CategoryDetailRow(
+              allocation: c,
+              spent: progress.spentFor(c.categoryId),
+              onReassign:
+                  (!isExample &&
+                      budgetHealthFor(
+                            progress.spentFor(c.categoryId),
+                            c.limitAmount,
+                          ) !=
+                          BudgetHealthStatus.onTrack)
+                  ? () => _reassignFunds(context, progress, c)
+                  : null,
+            ),
+            const SizedBox(height: HitoSpacing.sm),
+          ],
+          if (progress.unassignedSpent(budget) > 0)
+            _UnassignedSpendRow(amount: progress.unassignedSpent(budget)),
+        ],
+        const SizedBox(height: HitoSpacing.lg),
+        if (isExample)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(HitoSpacing.md),
+            decoration: BoxDecoration(
+              color: recessedColor(theme),
+              borderRadius: BorderRadius.circular(HitoRadius.md),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: HitoSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Esto es un presupuesto de ejemplo — creá el tuyo para poder editarlo.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          Text('Acciones', style: theme.textTheme.headlineMedium),
+          const SizedBox(height: HitoSpacing.sm),
+          Container(
+            decoration: BoxDecoration(
+              color: cardColor(theme),
+              borderRadius: BorderRadius.circular(HitoRadius.md),
+              boxShadow: cardShadow(),
+            ),
+            child: Column(
+              children: [
+                _ActionRow(
+                  icon: Icons.edit_outlined,
+                  label: 'Editar presupuesto',
+                  onTap: () => openCreateBudgetScreen(
+                    context,
+                    repository: budgetsRepository,
+                    existingBudget: budget,
+                  ),
+                ),
+                if (budget.type == BudgetType.general) ...[
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                  ),
+                  _ActionRow(
+                    icon: Icons.tune,
+                    label: 'Ajustar límite',
+                    onTap: () => _quickAdjustLimit(context),
+                  ),
+                ],
+                Divider(
+                  height: 1,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                ),
+                _ActionRow(
+                  icon: budget.status == BudgetStatus.paused
+                      ? Icons.play_circle_outline
+                      : Icons.pause_circle_outline,
+                  label: budget.status == BudgetStatus.paused
+                      ? 'Reanudar presupuesto'
+                      : 'Pausar presupuesto',
+                  onTap: () => _pause(context),
+                ),
+                Divider(
+                  height: 1,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                ),
+                _ActionRow(
+                  icon: Icons.cancel_outlined,
+                  label: 'Cancelar presupuesto',
+                  labelColor: theme.colorScheme.error,
+                  onTap: () => _cancel(context),
+                ),
+                Divider(
+                  height: 1,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                ),
+                _ActionRow(
+                  icon: Icons.copy_outlined,
+                  label: 'Duplicar como nuevo presupuesto',
+                  onTap: () => openCreateBudgetScreen(
+                    context,
+                    repository: budgetsRepository,
+                    duplicateFrom: budget,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: HitoSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _HeroStat(
-                  label: remaining >= 0 ? 'Disponible' : 'Excedido por',
-                  value: formatCurrency(remaining.abs()),
-                ),
-              ),
-              const SizedBox(width: HitoSpacing.md),
-              Expanded(
-                child: _HeroStat(
-                  label: 'Días restantes',
-                  value: budget.isPastEnd ? 'Vencido' : '${budget.daysLeft}',
-                ),
-              ),
-            ],
-          ),
         ],
-      ),
+      ],
     );
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status, required this.health});
+/// Card única con el estado del presupuesto: pastilla de estado
+/// arriba a la derecha, gauge circular "% usado" centrado, y la
+/// grilla 2x2 de estadísticas debajo — todo dentro del mismo
+/// contenedor (antes eran piezas sueltas con sombras propias que se
+/// superponían mal).
+class _GaugeCard extends StatelessWidget {
+  const _GaugeCard({
+    required this.ratio,
+    required this.health,
+    required this.status,
+    required this.spentTotal,
+    required this.remaining,
+    required this.limitAmount,
+    required this.daysLeft,
+  });
 
-  final BudgetStatus status;
+  final double ratio;
   final BudgetHealthStatus health;
+  final BudgetStatus status;
+  final double spentTotal;
+  final double remaining;
+  final double limitAmount;
+  final String daysLeft;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = status == BudgetStatus.paused
+    final color = progressColorFor(context, health);
+    final pillHealth = status == BudgetStatus.paused ? BudgetHealthStatus.onTrack : health;
+    final pillLabel = status == BudgetStatus.paused
         ? 'Pausado'
         : switch (health) {
             BudgetHealthStatus.exceeded => 'Excedido',
             BudgetHealthStatus.nearLimit => 'Cerca del límite',
             BudgetHealthStatus.onTrack => 'En curso',
           };
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.sm, vertical: 4),
+      width: double.infinity,
+      padding: const EdgeInsets.all(HitoSpacing.lg),
       decoration: BoxDecoration(
-        color: theme.colorScheme.onPrimary.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(9999),
+        color: cardColor(theme),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: cardShadow(),
       ),
-      child: Text(
-        label,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onPrimary,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: BudgetStatusPill(label: pillLabel, health: pillHealth),
+          ),
+          const SizedBox(height: HitoSpacing.sm),
+          SizedBox(
+            width: 160,
+            height: 160,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size(160, 160),
+                  painter: _GaugePainter(ratio: ratio, color: color, track: recessedColor(theme)),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${(ratio * 100).round()}%',
+                      style: theme.textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      'usado',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: HitoSpacing.lg),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: HitoSpacing.sm,
+            crossAxisSpacing: HitoSpacing.sm,
+            childAspectRatio: 2.4,
+            children: [
+              _StatChip(label: 'Gastado', value: formatCurrency(spentTotal)),
+              _StatChip(
+                label: remaining >= 0 ? 'Disponible' : 'Excedido por',
+                value: formatCurrency(remaining.abs()),
+              ),
+              _StatChip(label: 'Límite', value: formatCurrency(limitAmount)),
+              _StatChip(label: 'Restan', value: daysLeft),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.label, required this.value});
+class _GaugePainter extends CustomPainter {
+  _GaugePainter({
+    required this.ratio,
+    required this.color,
+    required this.track,
+  });
+
+  final double ratio;
+  final Color color;
+  final Color track;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    const strokeWidth = 14.0;
+    final trackPaint = Paint()
+      ..color = track
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect.deflate(strokeWidth / 2), 0, 2 * pi, false, trackPaint);
+
+    if (ratio <= 0) return;
+    final valuePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      rect.deflate(strokeWidth / 2),
+      -pi / 2,
+      2 * pi * ratio.clamp(0.0, 1.0),
+      false,
+      valuePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GaugePainter oldDelegate) =>
+      oldDelegate.ratio != ratio || oldDelegate.color != color;
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -372,20 +565,27 @@ class _HeroStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final onPrimary = theme.colorScheme.onPrimary;
     return Container(
-      padding: const EdgeInsets.all(HitoSpacing.sm + HitoSpacing.xs),
+      padding: const EdgeInsets.all(HitoSpacing.md),
       decoration: BoxDecoration(
-        color: onPrimary.withValues(alpha: 0.12),
+        color: recessedColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: onPrimary.withValues(alpha: 0.8))),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           Text(
             value,
-            style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: onPrimary),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -393,37 +593,165 @@ class _HeroStat extends StatelessWidget {
   }
 }
 
-/// Aviso suave, sin castigo — mismo tono que el resto de la app frente
-/// a "malas noticias" (nunca alarmante, siempre con una salida).
-class _HealthBanner extends StatelessWidget {
-  const _HealthBanner({required this.health});
+/// Ajuste rápido del límite de un presupuesto general — botones +/-
+/// de $5.000 y un campo directo, sin pasar por el wizard completo.
+class _QuickAdjustLimitSheet extends StatefulWidget {
+  const _QuickAdjustLimitSheet({required this.currentLimit});
 
-  final BudgetHealthStatus health;
+  final double currentLimit;
+
+  @override
+  State<_QuickAdjustLimitSheet> createState() => _QuickAdjustLimitSheetState();
+}
+
+class _QuickAdjustLimitSheetState extends State<_QuickAdjustLimitSheet> {
+  static const _step = 5000.0;
+  late final _controller = TextEditingController(
+    text: formatCurrency(widget.currentLimit).replaceAll('\$', ''),
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double get _value => parseAmountInput(_controller.text);
+
+  void _adjust(double delta) {
+    final next = (_value + delta).clamp(0.0, double.infinity);
+    setState(() => _controller.text = next.toStringAsFixed(0));
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final exceeded = health == BudgetHealthStatus.exceeded;
-    final bg = exceeded ? theme.colorScheme.errorContainer : theme.colorScheme.tertiaryContainer;
-    final fg = exceeded ? theme.colorScheme.onErrorContainer : theme.colorScheme.onTertiaryContainer;
-    final message = exceeded
-        ? 'Superaste tu límite. Podés ajustar el presupuesto o revisar tus gastos, sin drama.'
-        : 'Estás cerca del límite — respirá y revisá tus gastos antes de que llegue la fecha.';
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardColor(theme),
+          borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+        ),
+        padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outline,
+                    borderRadius: BorderRadius.circular(HitoRadius.sm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: HitoSpacing.md),
+              Text('Ajustar límite', style: theme.textTheme.headlineMedium),
+              const SizedBox(height: HitoSpacing.md),
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    onPressed: () => _adjust(-_step),
+                    icon: const Icon(Icons.remove),
+                  ),
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: HitoSpacing.sm),
+                      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                      decoration: BoxDecoration(
+                        color: recessedColor(theme),
+                        borderRadius: BorderRadius.circular(HitoRadius.md),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        textAlign: TextAlign.center,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                        style: theme.textTheme.headlineMedium,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          filled: false,
+                          border: InputBorder.none,
+                          prefixText: '\$ ',
+                          contentPadding: EdgeInsets.symmetric(vertical: HitoSpacing.md),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: () => _adjust(_step),
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              const SizedBox(height: HitoSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _value > 0 ? () => Navigator.of(context).pop(_value) : null,
+                  child: const Text('Guardar límite'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
+/// Gastos registrados en categorías que no tienen asignación en este
+/// presupuesto — igual descuentan del límite general (por eso su
+/// monto ya está sumado en "Gastado"), pero no pertenecen a ninguna
+/// barra de categoría, así que se etiquetan acá aparte.
+class _UnassignedSpendRow extends StatelessWidget {
+  const _UnassignedSpendRow({required this.amount});
+
+  final double amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(HitoSpacing.md),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(HitoRadius.md)),
+      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm + 4),
+      decoration: BoxDecoration(
+        color: recessedColor(theme),
+        borderRadius: BorderRadius.circular(HitoRadius.md),
+      ),
       child: Row(
         children: [
-          Icon(
-            exceeded ? Icons.error_outline : Icons.info_outline,
-            size: 20,
-            color: fg,
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: cardColor(theme), shape: BoxShape.circle),
+            child: Icon(Icons.help_outline, size: 18, color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(width: HitoSpacing.sm),
           Expanded(
-            child: Text(message, style: theme.textTheme.bodySmall?.copyWith(color: fg)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Fuera de categoría asignada',
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Igual descuenta del límite general',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            formatCurrencyCompact(amount),
+            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -431,60 +759,95 @@ class _HealthBanner extends StatelessWidget {
   }
 }
 
-class _CategoryGroups extends StatelessWidget {
-  const _CategoryGroups({required this.budget, required this.progress, required this.onReassign});
+class _DetailBanner extends StatelessWidget {
+  const _DetailBanner({required this.health, required this.hasSpending});
 
-  final Budget budget;
-  final BudgetProgress progress;
-  final ValueChanged<BudgetCategoryAllocation> onReassign;
+  final BudgetHealthStatus health;
+  final bool hasSpending;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final urgent = <BudgetCategoryAllocation>[];
-    final onTrack = <BudgetCategoryAllocation>[];
-    for (final c in budget.categories) {
-      final health = budgetHealthFor(progress.spentFor(c.categoryId), c.limitAmount);
-      (health == BudgetHealthStatus.onTrack ? onTrack : urgent).add(c);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (urgent.isNotEmpty) ...[
-          Text('Atención inmediata', style: theme.textTheme.headlineMedium),
-          const SizedBox(height: HitoSpacing.sm),
-          for (final c in urgent) ...[
-            _CategoryProgressRow(
-              allocation: c,
-              spent: progress.spentFor(c.categoryId),
-              onReassign: () => onReassign(c),
+    if (!hasSpending) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(HitoSpacing.md),
+        decoration: BoxDecoration(
+          color: recessedColor(theme),
+          borderRadius: BorderRadius.circular(HitoRadius.md),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: HitoSpacing.sm),
+            const SizedBox(width: HitoSpacing.sm),
+            Expanded(
+              child: Text(
+                'Aún no registraste gastos. Cuando anotes uno, lo verás reflejado acá.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           ],
-          const SizedBox(height: HitoSpacing.sm),
+        ),
+      );
+    }
+    final (bg, fg, icon, message) = switch (health) {
+      BudgetHealthStatus.exceeded => (
+        theme.colorScheme.errorContainer,
+        theme.colorScheme.onErrorContainer,
+        Icons.error_outline,
+        'Superaste tu límite. Podés ajustar el presupuesto o revisar tus gastos, sin drama.',
+      ),
+      BudgetHealthStatus.nearLimit => (
+        HitoColors.warningContainerLight,
+        HitoColors.warningLight,
+        Icons.info_outline,
+        'Estás cerca del límite — respirá y revisá tus gastos.',
+      ),
+      BudgetHealthStatus.onTrack => (
+        theme.colorScheme.tertiaryContainer,
+        theme.colorScheme.onTertiaryContainer,
+        Icons.check_circle_outline,
+        'Vas en camino. Tenés margen disponible, seguí con tu ritmo.',
+      ),
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(HitoSpacing.md),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(HitoRadius.md),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: fg),
+          const SizedBox(width: HitoSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(color: fg),
+            ),
+          ),
         ],
-        if (onTrack.isNotEmpty) ...[
-          Text('Bajo control', style: theme.textTheme.headlineMedium),
-          const SizedBox(height: HitoSpacing.sm),
-          for (final c in onTrack) ...[
-            _CategoryProgressRow(allocation: c, spent: progress.spentFor(c.categoryId)),
-            const SizedBox(height: HitoSpacing.sm),
-          ],
-        ],
-      ],
+      ),
     );
   }
 }
 
-class _CategoryProgressRow extends StatelessWidget {
-  const _CategoryProgressRow({required this.allocation, required this.spent, this.onReassign});
+class _CategoryDetailRow extends StatelessWidget {
+  const _CategoryDetailRow({
+    required this.allocation,
+    required this.spent,
+    this.onReassign,
+  });
 
   final BudgetCategoryAllocation allocation;
   final double spent;
-
-  /// Solo se pasa para categorías en "Atención inmediata" — ahí es
-  /// donde tiene sentido ofrecer mover fondos desde otra con sobrante.
   final VoidCallback? onReassign;
 
   @override
@@ -492,16 +855,20 @@ class _CategoryProgressRow extends StatelessWidget {
     final theme = Theme.of(context);
     final category = findCategory(allocation.categoryId);
     final health = budgetHealthFor(spent, allocation.limitAmount);
-    final ratio = allocation.limitAmount <= 0 ? 0.0 : (spent / allocation.limitAmount).clamp(0.0, 1.0);
-    final color = switch (health) {
-      BudgetHealthStatus.exceeded => theme.colorScheme.error,
-      BudgetHealthStatus.nearLimit => HitoColors.warningLight,
-      BudgetHealthStatus.onTrack => theme.colorScheme.primary,
-    };
+    final ratio = allocation.limitAmount <= 0
+        ? 0.0
+        : (spent / allocation.limitAmount).clamp(0.0, 1.0);
+    final pillLabel = spent == 0
+        ? 'Sin movimientos'
+        : switch (health) {
+            BudgetHealthStatus.exceeded => 'Excedido',
+            BudgetHealthStatus.nearLimit => 'Cerca del límite',
+            BudgetHealthStatus.onTrack => 'En curso',
+          };
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(HitoSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md, vertical: HitoSpacing.sm + 4),
       decoration: BoxDecoration(
         color: cardColor(theme),
         borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -514,64 +881,69 @@ class _CategoryProgressRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 40,
-                height: 40,
-                decoration:
-                    BoxDecoration(color: theme.colorScheme.secondaryContainer, shape: BoxShape.circle),
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(
                   category?.icon ?? Icons.category_outlined,
-                  size: 20,
-                  color: theme.colorScheme.onSecondaryContainer,
+                  size: 18,
+                  color: theme.colorScheme.onPrimaryContainer,
                 ),
               ),
-              const SizedBox(width: HitoSpacing.md),
+              const SizedBox(width: HitoSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          allocation.categoryLabel,
-                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        Text(
-                          '${formatCurrency(spent)} / ${formatCurrency(allocation.limitAmount)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      allocation.categoryLabel,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: HitoSpacing.xs),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(9999),
-                            child: LinearProgressIndicator(
-                              value: ratio,
-                              minHeight: 6,
-                              backgroundColor: recessedColor(theme),
-                              color: color,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: HitoSpacing.sm),
-                        Text(
-                          '${(ratio * 100).round()}%',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      '${formatCurrencyCompact(spent)} de ${formatCurrencyCompact(allocation.limitAmount)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: HitoSpacing.sm),
+              BudgetStatusPill(label: pillLabel, health: health),
             ],
+          ),
+          const SizedBox(height: HitoSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.only(left: 44 + HitoSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(9999),
+                    child: LinearProgressIndicator(
+                      value: ratio,
+                      minHeight: 6,
+                      backgroundColor: recessedColor(theme),
+                      color: progressColorFor(context, health),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: HitoSpacing.sm),
+                Text(
+                  '${(ratio * 100).round()}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (onReassign != null) ...[
             const SizedBox(height: HitoSpacing.xs),
@@ -585,6 +957,55 @@ class _CategoryProgressRow extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    this.labelColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? labelColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: HitoSpacing.md,
+          vertical: HitoSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: labelColor ?? theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: HitoSpacing.md),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(color: labelColor),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -618,8 +1039,10 @@ class _ReassignFundsSheetState extends State<_ReassignFundsSheet> {
   BudgetCategoryAllocation? _selected;
   late final _amountController = TextEditingController();
 
-  double get _surplus =>
-      _selected == null ? 0 : _selected!.limitAmount - widget.progress.spentFor(_selected!.categoryId);
+  double get _surplus => _selected == null
+      ? 0
+      : _selected!.limitAmount -
+            widget.progress.spentFor(_selected!.categoryId);
 
   @override
   void dispose() {
@@ -642,13 +1065,23 @@ class _ReassignFundsSheetState extends State<_ReassignFundsSheet> {
     final canConfirm = _selected != null && amount > 0 && amount <= _surplus;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: cardColor(theme),
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
         ),
-        padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.sm, HitoSpacing.lg, HitoSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          HitoSpacing.lg,
+          HitoSpacing.sm,
+          HitoSpacing.lg,
+          HitoSpacing.lg,
+        ),
         child: SafeArea(
           top: false,
           child: SingleChildScrollView(
@@ -671,13 +1104,16 @@ class _ReassignFundsSheetState extends State<_ReassignFundsSheet> {
                 const SizedBox(height: HitoSpacing.xs),
                 Text(
                   'Mové sobrante de otra categoría hacia "${widget.target.categoryLabel}".',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: HitoSpacing.md),
                 for (final c in widget.candidates) ...[
                   _SurplusCategoryTile(
                     allocation: c,
-                    surplus: c.limitAmount - widget.progress.spentFor(c.categoryId),
+                    surplus:
+                        c.limitAmount - widget.progress.spentFor(c.categoryId),
                     selected: _selected?.categoryId == c.categoryId,
                     onTap: () => _selectAll(c),
                   ),
@@ -687,18 +1123,24 @@ class _ReassignFundsSheetState extends State<_ReassignFundsSheet> {
                   const SizedBox(height: HitoSpacing.sm),
                   Text(
                     'Monto a mover (máximo ${formatCurrency(_surplus)})',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: HitoSpacing.xs),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: HitoSpacing.md),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: HitoSpacing.md,
+                    ),
                     decoration: BoxDecoration(
                       color: recessedColor(theme),
                       borderRadius: BorderRadius.circular(HitoRadius.md),
                     ),
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
                         isDense: true,
@@ -715,8 +1157,11 @@ class _ReassignFundsSheetState extends State<_ReassignFundsSheet> {
                   child: FilledButton(
                     onPressed: canConfirm
                         ? () => Navigator.of(context).pop(
-                              _ReassignResult(fromCategoryId: _selected!.categoryId, amount: amount),
-                            )
+                            _ReassignResult(
+                              fromCategoryId: _selected!.categoryId,
+                              amount: amount,
+                            ),
+                          )
                         : null,
                     child: const Text('Mover fondos'),
                   ),
@@ -752,15 +1197,20 @@ class _SurplusCategoryTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(HitoSpacing.md),
         decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primaryContainer : recessedColor(theme),
+          color: selected
+              ? theme.colorScheme.primaryContainer
+              : recessedColor(theme),
           borderRadius: BorderRadius.circular(HitoRadius.md),
         ),
         child: Row(
           children: [
             Icon(
-              findCategory(allocation.categoryId)?.icon ?? Icons.category_outlined,
+              findCategory(allocation.categoryId)?.icon ??
+                  Icons.category_outlined,
               size: 20,
-              color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+              color: selected
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: HitoSpacing.sm),
             Expanded(
@@ -775,7 +1225,9 @@ class _SurplusCategoryTile extends StatelessWidget {
               'Sobran ${formatCurrency(surplus)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+                color: selected
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -805,47 +1257,46 @@ class _ClosedBudgetSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final balanced = budget.categories
-        .where((c) => budgetHealthFor(progress.spentFor(c.categoryId), c.limitAmount) == BudgetHealthStatus.onTrack)
+        .where(
+          (c) =>
+              budgetHealthFor(progress.spentFor(c.categoryId), c.limitAmount) ==
+              BudgetHealthStatus.onTrack,
+        )
         .length;
     final exceeded = budget.categories.length - balanced;
-    final ratio =
-        budget.limitAmount <= 0 ? 0.0 : (progress.spentTotal / budget.limitAmount).clamp(0.0, 1.0);
+    final ratio = budget.limitAmount <= 0
+        ? 0.0
+        : (progress.spentTotal / budget.limitAmount).clamp(0.0, 1.0);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HitoSpacing.lg, HitoSpacing.md, HitoSpacing.lg, HitoSpacing.xxl),
+      padding: const EdgeInsets.fromLTRB(
+        HitoSpacing.lg,
+        HitoSpacing.md,
+        HitoSpacing.lg,
+        HitoSpacing.xxl,
+      ),
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(HitoSpacing.lg),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: heroShadow(),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'PRESUPUESTO CERRADO',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.8),
-                  letterSpacing: 0.6,
-                ),
-              ),
-              const SizedBox(height: HitoSpacing.xs),
-              Text(
-                formatCurrency(progress.spentTotal),
-                style: theme.textTheme.displayMedium?.copyWith(color: theme.colorScheme.onPrimary),
-              ),
-              Text(
-                'de ${formatCurrency(budget.limitAmount)} límite (${(ratio * 100).round()}%)',
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onPrimary),
-              ),
-            ],
+        _GaugeCard(
+          ratio: ratio,
+          health: budgetHealthFor(progress.spentTotal, budget.limitAmount),
+          status: budget.status,
+          spentTotal: progress.spentTotal,
+          remaining: budget.limitAmount - progress.spentTotal,
+          limitAmount: budget.limitAmount,
+          daysLeft: 'Vencido',
+        ),
+        const SizedBox(height: HitoSpacing.md),
+        Center(
+          child: Text(
+            '${formatCurrency(progress.spentTotal)} de ${formatCurrency(budget.limitAmount)}',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         const SizedBox(height: HitoSpacing.md),
-        if (budget.type == BudgetType.byCategory && budget.categories.isNotEmpty)
+        if (budget.type == BudgetType.byCategory &&
+            budget.categories.isNotEmpty)
           Row(
             children: [
               Expanded(
@@ -869,8 +1320,11 @@ class _ClosedBudgetSummary extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () =>
-                openCreateBudgetScreen(context, repository: budgetsRepository, duplicateFrom: budget),
+            onPressed: () => openCreateBudgetScreen(
+              context,
+              repository: budgetsRepository,
+              duplicateFrom: budget,
+            ),
             child: const Text('Duplicar este presupuesto'),
           ),
         ),
@@ -878,7 +1332,8 @@ class _ClosedBudgetSummary extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton(
-            onPressed: () => openCreateBudgetScreen(context, repository: budgetsRepository),
+            onPressed: () =>
+                openCreateBudgetScreen(context, repository: budgetsRepository),
             child: const Text('Crear presupuesto nuevo'),
           ),
         ),
@@ -900,7 +1355,11 @@ class _ClosedBudgetSummary extends StatelessWidget {
 }
 
 class _SummaryStatCard extends StatelessWidget {
-  const _SummaryStatCard({required this.icon, required this.label, required this.value});
+  const _SummaryStatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
@@ -921,8 +1380,18 @@ class _SummaryStatCard extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: theme.colorScheme.onTertiaryContainer),
           const SizedBox(height: HitoSpacing.sm),
-          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          Text(value, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            value,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

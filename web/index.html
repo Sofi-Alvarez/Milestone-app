@@ -37,6 +37,34 @@
 
   <title>Milestone</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Captura el prompt nativo de "instalar app" del navegador (Chrome/
+       Edge/Android) para poder dispararlo desde el botón "Descargar
+       app" del sheet de Flutter en vez de esperar a que el navegador
+       lo muestre solo. Safari/iOS no dispara este evento — ahí el
+       sheet cae al flujo manual de "Agregar a inicio". -->
+  <script>
+    window.deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      window.deferredInstallPrompt = event;
+    });
+    window.pwaInstallAvailable = function () {
+      return !!window.deferredInstallPrompt;
+    };
+    window.triggerPwaInstall = async function () {
+      var promptEvent = window.deferredInstallPrompt;
+      if (!promptEvent) return false;
+      promptEvent.prompt();
+      var choice = await promptEvent.userChoice;
+      window.deferredInstallPrompt = null;
+      return choice.outcome === 'accepted';
+    };
+    window.pwaAlreadyInstalled = function () {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+    };
+  </script>
 </head>
 <body>
   <!--

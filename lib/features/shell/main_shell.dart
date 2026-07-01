@@ -5,6 +5,8 @@ import '../../data/goals_repository.dart';
 import '../../data/transactions_repository.dart';
 import '../../data/user_settings.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/download_app_sheet.dart';
+import '../../widgets/pwa_install.dart';
 import '../history/history_screen.dart';
 import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
@@ -20,12 +22,17 @@ class MainShell extends StatefulWidget {
     required this.transactionsRepository,
     required this.settingsRepository,
     required this.budgetsRepository,
+    this.showDownloadPrompt = false,
   });
 
   final GoalsRepository goalsRepository;
   final TransactionsRepository transactionsRepository;
   final UserSettingsRepository settingsRepository;
   final BudgetsRepository budgetsRepository;
+
+  /// true solo la primera vez que se entra a Home tras completar el
+  /// onboarding — dispara el sheet "Milestone es mejor en la app".
+  final bool showDownloadPrompt;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -38,6 +45,16 @@ class _MainShellState extends State<MainShell> {
   // limpios en vez de arrastrarse entre visitas.
   int _historyVisit = 0;
   HistoryInitialView _historyInitialView = HistoryInitialView.registro;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showDownloadPrompt && !isPwaAlreadyInstalled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showDownloadAppSheet(context);
+      });
+    }
+  }
 
   void _goTo(int index, {HistoryInitialView? historyView}) {
     setState(() {

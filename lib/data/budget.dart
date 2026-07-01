@@ -62,6 +62,8 @@ class Budget {
     required this.status,
     required this.categories,
     required this.createdAt,
+    this.pausedAt,
+    this.resumedAt,
   });
 
   final String id;
@@ -76,6 +78,16 @@ class Budget {
   final BudgetStatus status;
   final List<BudgetCategoryAllocation> categories;
   final DateTime createdAt;
+
+  /// Marca de la última vez que se pausó — junto con [resumedAt]
+  /// delimita la ventana "congelada" que [computeBudgetProgress]
+  /// excluye del cálculo (los gastos hechos mientras estaba pausado
+  /// nunca cuentan contra el presupuesto).
+  final DateTime? pausedAt;
+
+  /// Marca de la última vez que se reanudó tras estar pausado — nulo
+  /// mientras sigue pausado (la ventana congelada sigue abierta).
+  final DateTime? resumedAt;
 
   bool get isPastEnd => DateTime.now().isAfter(endDate);
 
@@ -109,6 +121,8 @@ class Budget {
           .map((c) => BudgetCategoryAllocation.fromMap(c as Map<String, dynamic>))
           .toList(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      pausedAt: (data['pausedAt'] as Timestamp?)?.toDate(),
+      resumedAt: (data['resumedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -125,6 +139,8 @@ class Budget {
       'status': status.name,
       'categories': categories.map((c) => c.toMap()).toList(),
       'createdAt': Timestamp.fromDate(createdAt),
+      if (pausedAt != null) 'pausedAt': Timestamp.fromDate(pausedAt!),
+      if (resumedAt != null) 'resumedAt': Timestamp.fromDate(resumedAt!),
     };
   }
 }

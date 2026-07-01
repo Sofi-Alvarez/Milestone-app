@@ -20,7 +20,7 @@ import 'theme/app_theme.dart';
 /// Esto es independiente de Firestore/Metas, que ya usan Firebase real
 /// con un usuario anónimo (ver `_ensureUid` más abajo). Volver a `false`
 /// cuando el envío de magic link funcione de nuevo.
-const kForceDemoAuth = true;
+const kForceDemoAuth = false;
 
 /// Tema global — vive fuera del árbol de widgets para que Perfil pueda
 /// cambiarlo sin tener que atravesar toda la jerarquía con callbacks.
@@ -177,9 +177,16 @@ class _RootScreenState extends State<RootScreen> {
   StreamSubscription<Uri>? _linkSubscription;
   StreamSubscription<User?>? _authSubscription;
 
-  /// Si ya había sesión al abrir la app (usuario recurrente), nos saltamos
-  /// el onboarding directo. Esto se decide una sola vez, al arrancar.
-  late final bool _returningUser = _authService.currentUser != null;
+  /// Si ya había sesión REAL al abrir la app (usuario recurrente que
+  /// completó el magic link alguna vez), nos saltamos el onboarding
+  /// directo. Un usuario anónimo no cuenta como "recurrente" — ese uid
+  /// existe solo porque `_ensureUid` en AppBootstrap lo crea al vuelo
+  /// para que Firestore tenga dueño incluso antes de terminar el
+  /// onboarding; si lo tratáramos como sesión real, cualquier visita
+  /// nueva saltearía el onboarding entero. Esto se decide una sola vez,
+  /// al arrancar.
+  late final bool _returningUser =
+      _authService.currentUser != null && !_authService.currentUser!.isAnonymous;
 
   /// true cuando el link se confirmó (mismo dispositivo o, en web, otra
   /// pestaña con la misma sesión) — dispara la pantalla "Todo listo",
@@ -188,6 +195,11 @@ class _RootScreenState extends State<RootScreen> {
 
   /// true solo cuando el usuario toca "Entrar a Milestone".
   bool _enteredHome = false;
+
+  /// true únicamente en la transición onboarding -> Home — dispara el
+  /// sheet "Milestone es mejor en la app" una sola vez, nunca en
+  /// sesiones siguientes (_returningUser no la prende).
+  bool _justOnboarded = false;
 
   bool _skippedInitialAuthEvent = false;
 
@@ -233,6 +245,7 @@ class _RootScreenState extends State<RootScreen> {
         transactionsRepository: widget.transactionsRepository,
         settingsRepository: widget.settingsRepository,
         budgetsRepository: widget.budgetsRepository,
+        showDownloadPrompt: _justOnboarded,
       );
     }
     return OnboardingFlow(
@@ -241,7 +254,12 @@ class _RootScreenState extends State<RootScreen> {
       // dispositivo o sync entre pestañas). En modo demo, OnboardingFlow
       // se auto-avanza solo (ver onLinkSent en onboarding_flow.dart).
       linkConfirmed: _readyForAllDone,
-      onComplete: () => setState(() => _enteredHome = true),
+      onComplete: () => setState(() {
+        _enteredHome = true;
+        _justOnboarded = true;
+      }),
+      settingsRepository: widget.settingsRepository,
+      themeModeNotifier: themeModeNotifier,
     );
   }
 }
@@ -253,12 +271,14 @@ class HomePlaceholder extends StatelessWidget {
     required this.transactionsRepository,
     required this.settingsRepository,
     required this.budgetsRepository,
+    this.showDownloadPrompt = false,
   });
 
   final GoalsRepository? goalsRepository;
   final TransactionsRepository? transactionsRepository;
   final UserSettingsRepository? settingsRepository;
   final BudgetsRepository? budgetsRepository;
+  final bool showDownloadPrompt;
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +305,7 @@ class HomePlaceholder extends StatelessWidget {
       transactionsRepository: transactionsRepository!,
       settingsRepository: settingsRepository!,
       budgetsRepository: budgetsRepository!,
+      showDownloadPrompt: showDownloadPrompt,
     );
   }
 }

@@ -1,1 +1,37 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"milestone-cc9af","appId":"1:26241522599:android:ee9b14003172a137177482","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"milestone-cc9af","configurations":{"android":"1:26241522599:android:ee9b14003172a137177482","ios":"1:26241522599:ios:8d5a952b4abda5fb177482","web":"1:26241522599:web:29cdebcdf19e7dfa177482"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "milestone-cc9af",
+          "appId": "1:26241522599:android:ee9b14003172a137177482",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "milestone-cc9af",
+          "configurations": {
+            "android": "1:26241522599:android:ee9b14003172a137177482",
+            "ios": "1:26241522599:ios:8d5a952b4abda5fb177482",
+            "web": "1:26241522599:web:29cdebcdf19e7dfa177482"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
