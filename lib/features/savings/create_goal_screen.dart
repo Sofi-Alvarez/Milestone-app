@@ -111,8 +111,25 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
 
   bool _saving = false;
 
+  /// El botón nunca queda realmente deshabilitado (`onPressed: null`) —
+  /// así, si el usuario lo toca sin completar el formulario (o saltó
+  /// directo a un campo sin pasar por el anterior, que nunca llegó a
+  /// "tocarse"), igual vemos el tap y podemos mostrar los errores en
+  /// vez de no reaccionar. El estilo sigue pareciendo deshabilitado
+  /// mientras el formulario no sea válido (ver [_buttonStyle]).
+  void _onSubmitPressed() {
+    if (_saving) return;
+    if (_savedExceedsTarget || !_isFormComplete) {
+      setState(() {
+        _titleTouched = true;
+        _targetTouched = true;
+      });
+      return;
+    }
+    _createGoal();
+  }
+
   Future<void> _createGoal() async {
-    if (_savedExceedsTarget || !_isFormComplete) return;
     FocusScope.of(context).unfocus();
     final title = _titleController.text.trim().isEmpty
         ? 'Sin título'
@@ -252,9 +269,17 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: (_saving || _savedExceedsTarget || !_isFormComplete)
-                  ? null
-                  : _createGoal,
+              style: (_savedExceedsTarget || !_isFormComplete)
+                  ? FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
+                    )
+                  : null,
+              onPressed: _onSubmitPressed,
               child: _saving
                   ? const SizedBox(
                       height: 18,

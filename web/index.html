@@ -17,6 +17,12 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <!-- Sin esto, los navegadores mobile asumen un viewport virtual de
+       ~980px (el fallback clásico de "sitio de escritorio") y lo achican
+       para que entre en pantalla — eso disparaba de forma falsa nuestra
+       media query de "min-width: 900px" (mockup de desktop) incluso en
+       un teléfono real. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Milestone — bienestar financiero.">
   <!-- Le dice al navegador que la app ya maneja su propio modo claro/oscuro,
@@ -37,6 +43,116 @@
 
   <title>Milestone</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Milestone está diseñada mobile-first (usa rem para tipografía/spacing
+       relativos al viewport). En pantallas angostas eso es exactamente lo
+       que queremos, pero en desktop el mismo layout se estira de forma
+       poco natural. En vez de tocar el diseño de la app, por encima de
+       900px de ancho la montamos dentro de un mockup de teléfono de
+       tamaño fijo (390x844) — la app en sí no se entera de nada, sigue
+       viendo su propio viewport de siempre. -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #F2F1F4;
+    }
+
+    #phone-frame {
+      position: absolute;
+      inset: 0;
+      padding: 0;
+      background: none;
+      box-shadow: none;
+      border-radius: 0;
+      box-sizing: border-box;
+    }
+
+    #flutter-host {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #phone-notch,
+    .phone-button {
+      display: none;
+    }
+
+    @media (min-width: 900px) {
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 50% 30%, #2b2b33, #121216 70%);
+      }
+
+      #phone-frame {
+        position: relative;
+        inset: auto;
+        width: 430px;
+        height: 884px;
+        background: #0b0b0d;
+        border-radius: 56px;
+        box-shadow:
+          0 40px 90px rgba(0, 0, 0, 0.55),
+          0 0 0 2px rgba(255, 255, 255, 0.06) inset;
+        padding: 20px;
+      }
+
+      #flutter-host {
+        width: 390px;
+        height: 844px;
+        border-radius: 36px;
+        background: #F2F1F4;
+      }
+
+      #phone-notch {
+        display: block;
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 28px;
+        background: #0b0b0d;
+        border-radius: 0 0 18px 18px;
+        z-index: 5;
+      }
+
+      .phone-button {
+        display: block;
+        position: absolute;
+        background: #0b0b0d;
+      }
+
+      .phone-button.volume-up {
+        top: 130px;
+        left: -3px;
+        width: 3px;
+        height: 44px;
+        border-radius: 2px 0 0 2px;
+      }
+
+      .phone-button.volume-down {
+        top: 184px;
+        left: -3px;
+        width: 3px;
+        height: 44px;
+        border-radius: 2px 0 0 2px;
+      }
+
+      .phone-button.power {
+        top: 160px;
+        right: -3px;
+        width: 3px;
+        height: 70px;
+        border-radius: 0 2px 2px 0;
+      }
+    }
+  </style>
 
   <!-- Captura el prompt nativo de "instalar app" del navegador (Chrome/
        Edge/Android) para poder dispararlo desde el botón "Descargar
@@ -67,14 +183,82 @@
   </script>
 </head>
 <body>
+  <div id="phone-frame">
+    <div id="phone-notch"></div>
+    <div class="phone-button volume-up"></div>
+    <div class="phone-button volume-down"></div>
+    <div class="phone-button power"></div>
+    <div id="flutter-host"></div>
+  </div>
+
   <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+    El mockup de teléfono mide 430x884 fijos — si la ventana de desktop
+    es más chica que eso (alto o ancho), hay que escalarlo hacia abajo
+    para que siempre entre completo, en vez de recortarse. Reescala en
+    cada resize; en mobile (breakpoint <900px) no hace nada, el frame ya
+    vuelve a ser full-bleed por CSS.
+  -->
+  <script>
+    (function () {
+      var FRAME_W = 430;
+      var FRAME_H = 884;
+      var MARGIN = 40; // aire alrededor del mockup contra los bordes de la ventana
+
+      function fitPhoneFrame() {
+        var frame = document.getElementById('phone-frame');
+        if (!frame) return;
+
+        if (!window.matchMedia('(min-width: 900px)').matches) {
+          frame.style.transform = 'none';
+          return;
+        }
+
+        var availW = window.innerWidth - MARGIN * 2;
+        var availH = window.innerHeight - MARGIN * 2;
+        var scale = Math.min(1, availW / FRAME_W, availH / FRAME_H);
+        frame.style.transform = 'scale(' + scale + ')';
+      }
+
+      window.addEventListener('resize', fitPhoneFrame);
+      window.addEventListener('load', fitPhoneFrame);
+      fitPhoneFrame();
+    })();
+  </script>
+
+  <!--
+    Inicialización manual en vez del "flutter_bootstrap.js" automático:
+    necesitamos pasarle un hostElement propio (#flutter-host) para que
+    Flutter se monte ahí adentro y no en todo el body — así el mockup de
+    teléfono de arriba puede quedar fijo en 390x844 en desktop.
+
+    "flutter_bootstrap.js" se sigue generando en cada build con el
+    _flutter.buildConfig correcto para esta versión del SDK (qué
+    renderer, dónde está main.dart.js, etc.) — lo leemos de ahí en
+    tiempo de ejecución en vez de copiarlo a mano, así nunca se
+    desincroniza si cambia la versión de Flutter.
 
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter.js" defer></script>
+  <script>
+    window.addEventListener('load', async function (ev) {
+      const bootstrapSrc = await fetch('flutter_bootstrap.js').then((r) => r.text());
+      const buildConfigMatch = bootstrapSrc.match(/_flutter\.buildConfig\s*=\s*(\{[\s\S]*?\});/);
+      const serviceWorkerVersionMatch = bootstrapSrc.match(/serviceWorkerVersion:\s*"([^"]+)"/);
+
+      window._flutter = window._flutter || {};
+      window._flutter.buildConfig = JSON.parse(buildConfigMatch[1]);
+
+      _flutter.loader.load({
+        serviceWorkerSettings: serviceWorkerVersionMatch
+          ? { serviceWorkerVersion: serviceWorkerVersionMatch[1] }
+          : undefined,
+        config: {
+          hostElement: document.querySelector('#flutter-host'),
+        },
+      });
+    });
+  </script>
 </body>
 </html>

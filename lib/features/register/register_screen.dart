@@ -365,9 +365,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: HitoSpacing.sm),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: HitoSpacing.md,
-                    ),
+                    padding: const EdgeInsets.all(HitoSpacing.md),
                     decoration: BoxDecoration(
                       color: recessedColor(theme),
                       borderRadius: BorderRadius.circular(HitoRadius.md),
@@ -378,6 +376,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       focusNode: _noteFocus,
                       placeholder: 'Escribí una nota',
                       keyboardType: TextInputType.text,
+                      valueStyle: theme.textTheme.bodyLarge,
+                      labelStyle: theme.textTheme.bodySmall,
                     ),
                   ),
                 ],
@@ -455,23 +455,30 @@ class _AmountFieldState extends State<_AmountField> {
       },
       child: Center(
         child: _editing
-            ? TextField(
-                controller: widget.controller,
-                focusNode: widget.focusNode,
-                autofocus: true,
-                textAlign: TextAlign.center,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textInputAction: TextInputAction.done,
-                inputFormatters: [ThousandsInputFormatter()],
-                onSubmitted: (_) => widget.focusNode.unfocus(),
-                style: theme.textTheme.displayMedium,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  filled: false,
-                  border: InputBorder.none,
-                  prefixText: '\$ ',
+            ? SizedBox(
+                // Ancho completo explícito — sin esto, el TextField dentro
+                // de Center se ajusta al contenido y al escribir montos
+                // largos puede desbordar en vez de quedarse dentro de la
+                // pantalla.
+                width: double.infinity,
+                child: TextField(
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  autofocus: true,
+                  textAlign: TextAlign.center,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textInputAction: TextInputAction.done,
+                  inputFormatters: [ThousandsInputFormatter()],
+                  onSubmitted: (_) => widget.focusNode.unfocus(),
+                  style: theme.textTheme.displayMedium,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    prefixText: '\$ ',
+                  ),
                 ),
               )
             : Text(

@@ -21,7 +21,9 @@ class StatValue extends StatelessWidget {
   final String value;
   final VoidCallback? onTap;
 
-  /// Fondo de la card. Por defecto, la superficie "hundida" estándar.
+  /// Fondo de la card. Por defecto, primaryContainer (mismo tono lavanda
+  /// que la hero card de ahorro total, para que todas las stat cards se
+  /// vean consistentes con esa jerarquía visual).
   final Color? background;
 
   /// Color de label y valor cuando [background] es un color con
@@ -40,7 +42,7 @@ class StatValue extends StatelessWidget {
     final content = Container(
       padding: const EdgeInsets.all(HitoSpacing.md),
       decoration: BoxDecoration(
-        color: background ?? recessedColor(theme),
+        color: background ?? theme.colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(HitoRadius.md),
       ),
       child: Column(

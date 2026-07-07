@@ -38,14 +38,23 @@ Future<void> main() async {
 /// Esto NO afecta el flujo de onboarding — esa UI usa su propia instancia
 /// de [AuthService], que en modo demo ignora a Firebase por completo.
 Future<String?> _ensureUid() async {
-  try {
-    final auth = FirebaseAuth.instance;
-    if (auth.currentUser != null) return auth.currentUser!.uid;
-    final credential = await auth.signInAnonymously();
-    return credential.user?.uid;
-  } catch (_) {
-    return null;
+  final auth = FirebaseAuth.instance;
+  if (auth.currentUser != null) return auth.currentUser!.uid;
+
+  // Reintenta ante fallos transitorios (ej. rate-limit de Firebase Auth
+  // cuando varios testers recargan seguido) antes de resignarse a dejar
+  // los repositorios en null, que rompe cualquier guardado más adelante.
+  for (var attempt = 0; attempt < 3; attempt++) {
+    try {
+      final credential = await auth.signInAnonymously();
+      return credential.user?.uid;
+    } catch (_) {
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
+    }
   }
+  return null;
 }
 
 /// Permite reiniciar toda la app desde adentro (usado por "Cerrar
@@ -222,6 +231,12 @@ class _RootScreenState extends State<RootScreen> {
       _authService.currentUser != null &&
       !_authService.currentUser!.isAnonymous;
 
+  /// Bypass provisorio para el testing de usuarios: agregar
+  /// `?skip_onboarding=1` a la URL entra directo a Home, sin pasar por
+  /// el flujo de onboarding. Sacar una vez terminado el testing.
+  late final bool _skipOnboardingForTesting =
+      Uri.base.queryParameters['skip_onboarding'] == '1';
+
   /// true cuando el link se confirmó (mismo dispositivo o, en web, otra
   /// pestaña con la misma sesión) — dispara la pantalla "Todo listo",
   /// pero NO entra a Home todavía.
@@ -282,7 +297,7 @@ class _RootScreenState extends State<RootScreen> {
         onFinished: () => setState(() => _showSplash = false),
       );
     }
-    if (_returningUser || _enteredHome) {
+    if (_returningUser || _enteredHome || _skipOnboardingForTesting) {
       return HomePlaceholder(
         goalsRepository: widget.goalsRepository,
         transactionsRepository: widget.transactionsRepository,

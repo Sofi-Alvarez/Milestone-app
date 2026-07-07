@@ -50,15 +50,11 @@ Future<void> addSavingsAndNotify(
     return;
   }
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: const Text('Ahorro añadido'),
-      duration: const Duration(seconds: 3),
-      action: SnackBarAction(
-        label: 'Deshacer',
-        onPressed: () => repository.addSavings(goalId, -amount),
-      ),
-    ),
+  showAppToast(
+    context,
+    'Ahorro añadido',
+    actionLabel: 'Deshacer',
+    onAction: () => repository.addSavings(goalId, -amount),
   );
 }
 

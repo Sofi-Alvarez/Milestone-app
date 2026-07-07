@@ -26,71 +26,83 @@ class HitoBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: HitoSpacing.sm),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            boxShadow: [
-              BoxShadow(
-                color: HitoColors.neutral900Light.withValues(alpha: 0.10),
-                blurRadius: 12,
-                offset: const Offset(0, -2),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: HitoSpacing.sm),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        boxShadow: [
+          BoxShadow(
+            color: HitoColors.neutral900Light.withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
           ),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(_items.length, (index) {
-                final item = _items[index];
-                final isSelected = index == currentIndex;
-                final isCentral = index == _centralIndex;
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: List.generate(_items.length, (index) {
+            final item = _items[index];
+            final isSelected = index == currentIndex;
+            final isCentral = index == _centralIndex;
 
-                return _NavItem(
-                  label: item.label,
-                  isSelected: isSelected,
-                  showIndicator: !isCentral,
-                  onTap: () => onTap(index),
-                  // El ícono central flota por arriba de la barra (ver
-                  // Positioned más abajo), así que aquí dejamos el espacio.
-                  child: isCentral
-                      ? const SizedBox(width: 24, height: 24)
-                      : Icon(
-                          item.icon,
-                          size: 22,
-                          color: isSelected
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                );
-              }),
-            ),
-          ),
+            return _NavItem(
+              label: item.label,
+              isSelected: isSelected,
+              showIndicator: !isCentral,
+              onTap: () => onTap(index),
+              // El ícono central lo cubre el FAB flotante de Scaffold (ver
+              // HitoFab / floatingActionButtonLocation.centerDocked en
+              // main_shell.dart), así que acá dejamos solo el espacio.
+              child: isCentral
+                  ? const SizedBox(width: 24, height: 24)
+                  : Icon(
+                      item.icon,
+                      size: 22,
+                      color: isSelected
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+            );
+          }),
         ),
-        Positioned(
-          top: -20,
-          child: GestureDetector(
-            onTap: () => onTap(_centralIndex),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _items[_centralIndex].icon,
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
+      ),
+    );
+  }
+}
+
+/// Botón circular "+" que flota mitad adentro / mitad afuera del bottom
+/// nav. Vive como `Scaffold.floatingActionButton` (con
+/// `floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked`)
+/// en vez de vivir dentro de [HitoBottomNavBar] — así tiene su propia
+/// región de Scaffold con hit-testing garantizado en toda su superficie
+/// (antes, al flotar vía `Positioned(top: -20)` dentro del Stack de la
+/// barra, la mitad que sobresalía quedaba fuera de los límites que
+/// Scaffold le asigna a `bottomNavigationBar` y no respondía al tap) y
+/// su propia sombra de Material, sin compartir ni interferir con la
+/// sombra de la barra.
+class HitoFab extends StatelessWidget {
+  const HitoFab({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.primary,
+      shape: const CircleBorder(),
+      elevation: HitoElevation.level3,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
         ),
-      ],
+      ),
     );
   }
 }

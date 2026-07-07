@@ -145,6 +145,8 @@ class EditableGoalField extends StatefulWidget {
     required this.keyboardType,
     this.leading,
     this.isAmount = false,
+    this.valueStyle,
+    this.labelStyle,
   });
 
   final String label;
@@ -154,6 +156,17 @@ class EditableGoalField extends StatefulWidget {
   final TextInputType keyboardType;
   final Widget? leading;
   final bool isAmount;
+
+  /// Estilo del valor (editado o estático). Por defecto headlineMedium —
+  /// pasar algo más chico/regular (ej. bodyLarge) para usos como una nota
+  /// de texto libre, donde ese peso queda demasiado pesado.
+  final TextStyle? valueStyle;
+
+  /// Estilo del label. Por defecto bodyMedium — pasar bodySmall cuando el
+  /// campo tiene que calzar con el ritmo vertical de [_PickerField]
+  /// (mismo tamaño de fuente, pero bodySmall tiene line-height más
+  /// ajustado: 1.4 vs 1.55 de bodyMedium).
+  final TextStyle? labelStyle;
 
   @override
   State<EditableGoalField> createState() => _EditableGoalFieldState();
@@ -186,9 +199,16 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
     return widget.controller.text;
   }
 
+  void _startEditing() {
+    if (_editing) return;
+    setState(() => _editing = true);
+    widget.focusNode.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final valueStyle = widget.valueStyle ?? theme.textTheme.headlineMedium;
 
     return Row(
       children: [
@@ -197,44 +217,50 @@ class _EditableGoalFieldState extends State<EditableGoalField> {
           const SizedBox(width: HitoSpacing.sm),
         ],
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+          // Todo el bloque de label+valor es tappeable — antes solo el
+          // lápiz activaba la edición, y tocar el propio valor (ej.
+          // "$ 0,00") no hacía nada, algo nada obvio para el usuario.
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _startEditing,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.label,
+                  style:
+                      (widget.labelStyle ?? theme.textTheme.bodyMedium)
+                          ?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                 ),
-              ),
-              if (_editing)
-                TextField(
-                  controller: widget.controller,
-                  focusNode: widget.focusNode,
-                  keyboardType: widget.keyboardType,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => widget.focusNode.unfocus(),
-                  inputFormatters: widget.isAmount
-                      ? [ThousandsInputFormatter()]
-                      : null,
-                  style: theme.textTheme.headlineMedium,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    filled: false,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                )
-              else
-                Text(_displayValue, style: theme.textTheme.headlineMedium),
-            ],
+                if (_editing)
+                  TextField(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    keyboardType: widget.keyboardType,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => widget.focusNode.unfocus(),
+                    inputFormatters: widget.isAmount
+                        ? [ThousandsInputFormatter()]
+                        : null,
+                    style: valueStyle,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      filled: false,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  )
+                else
+                  Text(_displayValue, style: valueStyle),
+              ],
+            ),
           ),
         ),
         IconButton(
           tooltip: 'Editar ${widget.label}',
-          onPressed: () {
-            setState(() => _editing = true);
-            widget.focusNode.requestFocus();
-          },
+          onPressed: _startEditing,
           icon: const Icon(Icons.edit_outlined, size: 20),
         ),
       ],

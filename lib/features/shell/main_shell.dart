@@ -102,11 +102,16 @@ class _MainShellState extends State<MainShell> {
     // volver, CTA que lleva a Home) — el bottom nav no aporta ahí y
     // compite visualmente con el CTA de guardar.
     const registerIndex = 2;
+    final showNav = _index != registerIndex;
     return Scaffold(
       body: IndexedStack(index: _index, children: screens),
-      bottomNavigationBar: _index == registerIndex
-          ? null
-          : HitoBottomNavBar(currentIndex: _index, onTap: _goTo),
+      bottomNavigationBar: showNav
+          ? HitoBottomNavBar(currentIndex: _index, onTap: _goTo)
+          : null,
+      floatingActionButton: showNav
+          ? HitoFab(onTap: () => _goTo(registerIndex))
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }

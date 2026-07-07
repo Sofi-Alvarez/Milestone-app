@@ -54,7 +54,7 @@ class GoalSummaryCard extends StatelessWidget {
       statusLabel: goal.paceLabel,
       statusLabelColor: _statusLabelColor(context),
       trailingValue: formatCurrency(goal.savedAmount),
-      trailingLabel: 'Ahorrado',
+      trailingLabel: 'de ${formatCurrency(goal.targetAmount)}',
       middle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -129,8 +129,23 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     if (picked != null) setState(() => _targetDate = picked);
   }
 
+  /// El botón nunca queda con `onPressed: null` — así, si el usuario lo
+  /// toca sin completar el formulario (o saltó directo a un campo sin
+  /// pasar por el anterior, que nunca llegó a "tocarse"), igual vemos el
+  /// tap y podemos mostrar los errores en vez de no reaccionar.
+  void _onSubmitPressed() {
+    if (_saving) return;
+    if (!_hasChanges || _savedExceedsTarget || !_isFormComplete) {
+      setState(() {
+        _titleTouched = true;
+        _targetTouched = true;
+      });
+      return;
+    }
+    _saveChanges();
+  }
+
   Future<void> _saveChanges() async {
-    if (_savedExceedsTarget || !_isFormComplete) return;
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
@@ -332,13 +347,18 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed:
-                  (_hasChanges &&
-                      !_saving &&
-                      !_savedExceedsTarget &&
-                      _isFormComplete)
-                  ? _saveChanges
+              style:
+                  (!_hasChanges || _savedExceedsTarget || !_isFormComplete)
+                  ? FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
+                    )
                   : null,
+              onPressed: _onSubmitPressed,
               child: _saving
                   ? const SizedBox(
                       height: 18,
