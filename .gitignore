@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local tooling and caches
+.claude/
+.firebase/
+
+# Working documents (published versions live in docs/)
+*.docx
